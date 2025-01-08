@@ -31,7 +31,7 @@ This proxy was specifically designed for **Huawei Inverters**, where the dongle 
    git clone <repository_url>
    cd modbus_proxy
 
-2. Clone the repository:
+2. Build:
 
    ```bash
    mkdir build
