@@ -7,6 +7,7 @@
 #include "logging.h"
 #include "modbus_tcp_server.h"
 #include "modbus_tcp_poll.h"
+#include "http_server.h"
 
 
 #define TAG "modbus_tcp_proxy"
@@ -47,13 +48,16 @@ int main() {
     logging_set_global_log_level(LOG_LEVEL_INFO);
 
     modbus_tcp_server_start(5502);
-    modbus_tcp_poll_start("192.168.8.85", 502);
+    //modbus_tcp_poll_start("192.168.8.85", 502);
+    modbus_tcp_poll_start("192.168.8.90", 5502);
+    http_server_start(8888);
 
     event_loop();
 
     LOGI(TAG, "Stopping services...");
     modbus_tcp_server_stop();
     modbus_tcp_poll_stop();
+    http_server_stop();
     LOGI(TAG, "Shutdown complete.");
 
     return 0;

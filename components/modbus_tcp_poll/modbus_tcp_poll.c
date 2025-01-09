@@ -35,7 +35,6 @@ poll_register_t poll_registers[] = {
     {37700, 67, 0x03, 0},
     {47000, 1, 0x03, 0},
     {47086, 4, 0x03, 0},
-    //{37700, 90, 0x03, 0}
 
 //{30000, 15, 0x03, 0},
 //{30015, 10, 0x03, 0},
@@ -81,10 +80,22 @@ static bool polling_thread_running = false;
 static pthread_mutex_t polling_control_mutex = PTHREAD_MUTEX_INITIALIZER;
 
 
-uint8_t *modbus_tcp_get_poll_data(uint16_t address, uint16_t length, uint16_t *out_length) {
-    uint8_t *data = NULL;
-    pthread_mutex_lock(&poll_data_mutex);
+static void memcpy_reverse(void *d, void *s, unsigned char size) {
+	unsigned char *pd = (unsigned char *) d;
+	unsigned char *ps = (unsigned char *) s;
 
+	ps += size;
+	while (size--) {
+		--ps;
+		*pd++ = *ps;
+	}
+}
+
+
+uint8_t *modbus_tcp_get_poll_data_raw(uint16_t address, uint16_t length, uint16_t *out_length) {
+    uint8_t *data = NULL;
+
+    pthread_mutex_lock(&poll_data_mutex);
     for (size_t i = 0; i < POLL_REGISTER_COUNT; i++) {
         uint16_t start_address = poll_data[i].address;
         uint16_t end_address = start_address + poll_data[i].length / 2;
@@ -102,6 +113,83 @@ uint8_t *modbus_tcp_get_poll_data(uint16_t address, uint16_t length, uint16_t *o
     pthread_mutex_unlock(&poll_data_mutex);
     return data;
 }
+
+
+void modbus_tcp_get_poll_data(uint16_t address, uint16_t length, bool big_endian, uint8_t *data) {
+    size_t i;
+
+    pthread_mutex_lock(&poll_data_mutex);
+    for (i = 0; i < POLL_REGISTER_COUNT; i++) {
+        uint16_t start_address = poll_data[i].address;
+        uint16_t end_address = start_address + poll_data[i].length / 2;
+        if (address >= start_address && (address + length) <= end_address) {
+            uint16_t offset = (address - start_address) * 2;
+            if (big_endian) {
+                memcpy_reverse(data, poll_data[i].data + offset, length * 2);
+            }
+            else {
+                for (uint8_t i = 0; i < length; i++) {
+                    data[i * 2] = *(poll_data[i].data + (offset + i * 2 + 1));
+                    data[i * 2 + 1] = *(poll_data[i].data + (offset + i * 2));
+                }
+            }
+            break;
+        }
+    }
+    if (i == POLL_REGISTER_COUNT) {
+        LOGE(TAG, "No cached data found for address %u with length %u", address, length);
+        memset(data, 0, length * 2);
+    }
+    pthread_mutex_unlock(&poll_data_mutex);
+}
+
+
+void modbus_tcp_get_poll_str(uint16_t address, uint16_t length, bool reversed, char **data, uint16_t *len) {
+    size_t i;
+
+    pthread_mutex_lock(&poll_data_mutex);
+    for (i = 0; i < POLL_REGISTER_COUNT; i++) {
+        uint16_t start_address = poll_data[i].address;
+        uint16_t end_address = start_address + poll_data[i].length / 2;
+        if (address >= start_address && (address + length) <= end_address) {
+            uint16_t offset = (address - start_address) * 2;
+
+            if (reversed) {
+                for (uint8_t x = (offset + length * 2); x >= 0; x--) {
+                    if (poll_data[i].data[x] > 0x7F) {
+                        LOGW(TAG, "Invalid string received! Unknown char at index %hhu", *len);
+                        break;
+                    }
+                    else if (poll_data[i].data[x] == '\0') {
+                        continue;
+                    }
+                    *len += 1;
+                }
+                *data = malloc(*len + 1); // TODO: maybe not allocate size 0 + 1 just set data on NULL;
+                memcpy_reverse(*data, poll_data[i].data + offset, *len);
+                (*data)[*len] = '\0';
+            }
+            else {
+                for (uint8_t x = offset; x < offset + length * 2; x++) {
+                    if (poll_data[i].data[x] > 0x7F) {
+                        LOGW(TAG, "Invalid string received! Unknown char at index %hhu", *len);
+                        break;
+                    }
+                    else if (poll_data[i].data[x] == '\0') {
+                        break;
+                    }
+                    *len += 1;
+                }
+                *data = malloc(*len + 1);
+                memcpy(*data, poll_data[i].data + offset, *len);
+                (*data)[*len] = '\0';
+            }
+            break;
+        }
+    }
+    pthread_mutex_unlock(&poll_data_mutex);
+}
+
 
 
 void modbus_tcp_save_poll_data(uint16_t address, uint8_t *data, uint16_t length) {
