@@ -2,5 +2,5 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-int http_server_start(int port);
+int http_server_start(uint16_t port);
 void http_server_stop();
