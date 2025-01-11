@@ -35,29 +35,6 @@ poll_register_t poll_registers[] = {
     {37700, 67, 0x03, 0},
     {47000, 1, 0x03, 0},
     {47086, 4, 0x03, 0},
-
-//{30000, 15, 0x03, 0},
-//{30015, 10, 0x03, 0},
-//{30073, 2, 0x03,0},
-//{30075, 2, 0x03, 0},
-//{32080, 2, 0x03, 0},
-//{32114, 2, 0x03, 0},
-//{37000, 1, 0x03, 0},
-//{37052, 10, 0x03, 0},
-//{37100, 1, 0x03, 0},
-////{37101, 37, 0x03, 0},
-//{37113, 2, 0x03, 0},
-//{37125, 1, 0x03, 0},
-//{37700, 10, 0x03, 0},
-//{37741, 1, 0x03, 0},
-//{37758, 2, 0x03, 0},
-//{37760, 1, 0x03, 0},
-//{37762, 1, 0x03, 0},
-//{37765, 2, 0x03, 0},
-//{47000, 1, 0x03, 0},
-//{47086, 1, 0x03, 0},
-//{47089, 1, 0x03, 0},
-
 };
 
 
@@ -100,6 +77,10 @@ uint8_t *modbus_tcp_get_poll_data_raw(uint16_t address, uint16_t length, uint16_
         uint16_t start_address = poll_data[i].address;
         uint16_t end_address = start_address + poll_data[i].length / 2;
         if (address >= start_address && (address + length) <= end_address) {
+            if (!poll_data[i].data) {
+                i = POLL_REGISTER_COUNT;
+                break;
+            }
             uint16_t offset = (address - start_address) * 2;
             data = malloc(length * 2);
             if (data) {
@@ -123,14 +104,18 @@ void modbus_tcp_get_poll_data(uint16_t address, uint16_t length, bool big_endian
         uint16_t start_address = poll_data[i].address;
         uint16_t end_address = start_address + poll_data[i].length / 2;
         if (address >= start_address && (address + length) <= end_address) {
+            if (!poll_data[i].data) {
+                i = POLL_REGISTER_COUNT;
+                break;
+            }
             uint16_t offset = (address - start_address) * 2;
             if (big_endian) {
                 memcpy_reverse(data, poll_data[i].data + offset, length * 2);
             }
             else {
-                for (uint8_t i = 0; i < length; i++) {
-                    data[i * 2] = *(poll_data[i].data + (offset + i * 2 + 1));
-                    data[i * 2 + 1] = *(poll_data[i].data + (offset + i * 2));
+                for (uint16_t x = 0; x < length * 2; x++) {
+                    data[x * 2 + i] = *(poll_data[i].data + (offset + x * 2 + 1));
+                    data[x * 2] = *(poll_data[i].data + (offset + x * 2));
                 }
             }
             break;
@@ -152,8 +137,11 @@ void modbus_tcp_get_poll_str(uint16_t address, uint16_t length, bool reversed, c
         uint16_t start_address = poll_data[i].address;
         uint16_t end_address = start_address + poll_data[i].length / 2;
         if (address >= start_address && (address + length) <= end_address) {
+            if (!poll_data[i].data) {
+                i = POLL_REGISTER_COUNT;
+                break;
+            }
             uint16_t offset = (address - start_address) * 2;
-
             if (reversed) {
                 for (uint8_t x = (offset + length * 2); x >= 0; x--) {
                     if (poll_data[i].data[x] > 0x7F) {
@@ -165,7 +153,7 @@ void modbus_tcp_get_poll_str(uint16_t address, uint16_t length, bool reversed, c
                     }
                     *len += 1;
                 }
-                *data = malloc(*len + 1); // TODO: maybe not allocate size 0 + 1 just set data on NULL;
+                *data = malloc(*len + 1);
                 memcpy_reverse(*data, poll_data[i].data + offset, *len);
                 (*data)[*len] = '\0';
             }
@@ -186,6 +174,11 @@ void modbus_tcp_get_poll_str(uint16_t address, uint16_t length, bool reversed, c
             }
             break;
         }
+    }
+    if (i == POLL_REGISTER_COUNT) {
+        LOGE(TAG, "No cached data found for address %u with length %u", address, length);
+        *data = malloc(*len + 1);
+        (*data)[*len] = '\0';
     }
     pthread_mutex_unlock(&poll_data_mutex);
 }
