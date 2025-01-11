@@ -47,10 +47,9 @@ int main() {
 
     logging_set_global_log_level(LOG_LEVEL_INFO);
 
-    modbus_tcp_server_start(5502);
-    //modbus_tcp_poll_start("192.168.8.85", 502);
-    modbus_tcp_poll_start("192.168.8.90", 5502);
-    http_server_start(8888);
+    modbus_tcp_server_start(502);
+    modbus_tcp_poll_start("192.168.8.85", 502);
+    http_server_start(80);
 
     event_loop();
 
