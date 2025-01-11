@@ -20,6 +20,7 @@ This proxy was specifically designed for **Huawei Inverters**, where the dongle 
 1. The Modbus Proxy connects f.e. to the Huawei inverter via its dongle.
 2. It polls data from the inverter at configurable intervals.
 3. The data is cached and provided to clients that connect to the proxy, avoiding multiple connections to the inverter dongle.
+4. Additional the cached values, are obtain-able as a json.
 
 ---
 
@@ -47,4 +48,6 @@ This proxy was specifically designed for **Huawei Inverters**, where the dongle 
 
 ![Service Start](docs/img/service_start.png)
 ![Service Caching](docs/img/service_caching.png)
+![json values](docs/img/values_json.png)
+![info values](docs/img/info_json.png)
 ![Service Usage](docs/img/service_usage.png)
