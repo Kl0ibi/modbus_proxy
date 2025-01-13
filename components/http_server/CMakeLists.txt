@@ -9,5 +9,5 @@ target_include_directories(http_server PUBLIC
 target_link_libraries(http_server PUBLIC
     logging
     modbus_tcp_poll
-    m # math.h
+    huawei_modbus_converter
 )
