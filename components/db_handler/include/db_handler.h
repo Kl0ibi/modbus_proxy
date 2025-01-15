@@ -1,0 +1,2 @@
+#define DB_HANDLER_OK 0
+#define DB_HANDLER_GENERAL_ERROR 1
