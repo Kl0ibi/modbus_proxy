@@ -137,7 +137,7 @@ void huawei_get_values(huawei_values_t *values) {
         values->energy_meter.energy_apparent_prod_vah = (uint64_t)sqrt((double)(values->energy_meter.energy_real_cons_wh * values->energy_meter.energy_real_cons_wh) + (em.energy_reactive_cons * 10 * em.energy_reactive_cons * 10));
         values->energy_meter.energy_apparent_cons_vah = 0;
     }
-	values->energy_meter.p_load_w = values->inverter.inv_ac_w - values->energy_meter.p_grid_w;
+	values->energy_meter.p_load_w = values->inverter.inv_ac_w + values->energy_meter.p_grid_w;
 }
 
 

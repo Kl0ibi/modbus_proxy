@@ -8,6 +8,7 @@
 #include <time.h>
 #include "system.h"
 #include "modbus_tcp_client.h"
+#include "solar_logger.h"
 #include "logging.h"
 
 
@@ -269,7 +270,10 @@ void *polling_thread(void *arg) {
         }
         modbus_tcp_client_disconnect(sock);
         if (polling_thread_running) {
-            sleep(DELAY_BETWEEN_POLLS_S);
+            huawei_values_t values;
+            huawei_get_values(&values);
+            solar_logger_post_data(&values, true);
+            sleep(DELAY_BETWEEN_POLLS_S); //TODO: add relative delay
         }
     }
     pthread_exit(NULL);

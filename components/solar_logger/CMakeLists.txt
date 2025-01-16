@@ -10,4 +10,5 @@ target_link_libraries(solar_logger PUBLIC
     system
     logging
     db_handler
+    huawei_modbus_converter
 )

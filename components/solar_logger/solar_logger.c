@@ -4,6 +4,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+#include "solar_logger.h"
 #include "db_handler.h" 
 #include "system.h"
 #include "logging.h"
@@ -25,14 +26,13 @@ typedef struct __attribute__((packed, aligned(1))) {
 } cached_solar_values_info_t;
 
 
-typedef struct __attribute__((packed, aligned(1))) {
-	uint32_t p_pv :18;
+typedef struct __attribute__((packed, aligned(1))) { //TODO: addd frequency
+	int32_t p_inv_ac :19;
 	int32_t p_grid :19;
 	int32_t p_load :19;
 	int32_t p_bat :19;
-	uint16_t num_phases :2;
 	uint32_t cp_status :3;
-
+	uint32_t uploaded :1;
 	uint16_t nrg_i_l1;
 	uint16_t nrg_i_l2;
 	uint16_t nrg_i_l3;
@@ -49,13 +49,17 @@ typedef struct __attribute__((packed, aligned(1))) {
 	int32_t p_l1 :22;
 	int32_t p_l2 :22;
 	int32_t p_l3 :22;
-	int32_t p_total :22;
 	int32_t s_l1 :22;
 	int32_t s_l2 :22;
 	int32_t s_l3 :22;
-
+    uint32_t energy_prod_day;
 	uint32_t bat_soc_f10 :10;
-	uint32_t uploaded :1;
+	uint32_t p_pv :18;
+	uint16_t num_phases :2;
+
+    uint64_t energy_prod_wh;
+    uint64_t energy_exp_wh;
+    uint64_t energy_imp_wh;
 } cached_solar_values_t;
 
 
@@ -79,8 +83,37 @@ cached_solar_values_t* solar_logger_get_all_cached_values() {
 
 
 
-static void update_cached_values(cached_solar_values_t *values) {
-	memcpy(&cached_values[cache_index], values, sizeof(cached_solar_values_t));
+static void update_cached_values(huawei_values_t *values, time_t ts) {
+    cached_values[cache_index].ts = (uint32_t)ts;
+    cached_values[cache_index].p_pv = values->inverter.pv_dc_w > MAX_UINTN(18) ? MAX_UINTN(18) : values->inverter.pv_dc_w;
+    cached_values[cache_index].energy_prod_day = values->inverter.daily_pv_energy_wh;
+    cached_values[cache_index].energy_prod_wh = values->inverter.total_pv_energy_wh;
+    cached_values[cache_index].p_grid = values->energy_meter.p_grid_w >= 0 ? (values->energy_meter.p_grid_w > MAX_INTN(19) ? MAX_INTN(19) : values->energy_meter.p_grid_w) : (values->energy_meter.p_grid_w < MIN_INTN(19) ? MIN_INTN(19) : values->energy_meter.p_grid_w);
+    cached_values[cache_index].p_load = values->energy_meter.p_load_w >= 0 ? (values->energy_meter.p_load_w > MAX_INTN(19) ? MAX_INTN(19) : values->energy_meter.p_load_w) : (values->energy_meter.p_load_w < MIN_INTN(19) ? MIN_INTN(19) : values->energy_meter.p_load_w);
+    cached_values[cache_index].energy_exp_wh = values->energy_meter.energy_real_prod_wh;
+    cached_values[cache_index].energy_imp_wh = values->energy_meter.energy_real_cons_wh;
+    cached_values[cache_index].i_l1 = values->energy_meter.current[0] >= 0 ? ((int32_t)(values->energy_meter.current[0] * 100) > MAX_INTN(20) ? MAX_INTN(20) : (int32_t)(values->energy_meter.current[0] * 100)) : ((int32_t)(values->energy_meter.current[0] * 100) < MIN_INTN(20) ? MIN_INTN(20) : (int32_t)(values->energy_meter.current[0] * 100));
+    cached_values[cache_index].i_l2 = values->energy_meter.current[1] >= 0 ? ((int32_t)(values->energy_meter.current[1] * 100) > MAX_INTN(20) ? MAX_INTN(20) : (int32_t)(values->energy_meter.current[1] * 100)) : ((int32_t)(values->energy_meter.current[1] * 100) < MIN_INTN(20) ? MIN_INTN(20) : (int32_t)(values->energy_meter.current[1] * 100));
+    cached_values[cache_index].i_l3 = values->energy_meter.current[2] >= 0 ? ((int32_t)(values->energy_meter.current[2] * 100) > MAX_INTN(20) ? MAX_INTN(20) : (int32_t)(values->energy_meter.current[2] * 100)) : ((int32_t)(values->energy_meter.current[2] * 100) < MIN_INTN(20) ? MIN_INTN(20) : (int32_t)(values->energy_meter.current[2] * 100));
+    cached_values[cache_index].u_l1 = values->energy_meter.voltage[0] >= 0 ? ((uint32_t)(values->energy_meter.voltage[0] * 10) > MAX_UINTN(12) ? MAX_UINTN(12) : (uint32_t)(values->energy_meter.voltage[0] * 10)) : (0);
+    cached_values[cache_index].u_l2 = values->energy_meter.voltage[1] >= 0 ? ((uint32_t)(values->energy_meter.voltage[1] * 10) > MAX_UINTN(12) ? MAX_UINTN(12) : (uint32_t)(values->energy_meter.voltage[1] * 10)) : (0);
+    cached_values[cache_index].u_l3 = values->energy_meter.voltage[2] >= 0 ? ((uint32_t)(values->energy_meter.voltage[2] * 10) > MAX_UINTN(12) ? MAX_UINTN(12) : (uint32_t)(values->energy_meter.voltage[2] * 10)) : (0);
+    cached_values[cache_index].p_l1 = values->energy_meter.power_real[0] >= 0 ? ((int32_t)(values->energy_meter.power_real[0] * 10) > MAX_INTN(22) ? MAX_INTN(22) : (int32_t)(values->energy_meter.power_real[0] * 10)) : ((int32_t)(values->energy_meter.power_real[0] * 10) < MIN_INTN(22) ? MIN_INTN(22) : (int32_t)(values->energy_meter.power_real[0] * 10));
+    cached_values[cache_index].p_l2 = values->energy_meter.power_real[1] >= 0 ? ((int32_t)(values->energy_meter.power_real[1] * 10) > MAX_INTN(22) ? MAX_INTN(22) : (int32_t)(values->energy_meter.power_real[1] * 10)) : ((int32_t)(values->energy_meter.power_real[1] * 10) < MIN_INTN(22) ? MIN_INTN(22) : (int32_t)(values->energy_meter.power_real[1] * 10));
+    cached_values[cache_index].p_l3 = values->energy_meter.power_real[2] >= 0 ? ((int32_t)(values->energy_meter.power_real[2] * 10) > MAX_INTN(22) ? MAX_INTN(22) : (int32_t)(values->energy_meter.power_real[2] * 10)) : ((int32_t)(values->energy_meter.power_real[2] * 10) < MIN_INTN(22) ? MIN_INTN(22) : (int32_t)(values->energy_meter.power_real[2] * 10));
+    cached_values[cache_index].s_l1 = values->energy_meter.power_apparent[0] >= 0 ? ((int32_t)(values->energy_meter.power_apparent[0] * 10) > MAX_INTN(22) ? MAX_INTN(22) : (int32_t)(values->energy_meter.power_apparent[0] * 10)) : ((int32_t)(values->energy_meter.power_apparent[0] * 10) < MIN_INTN(22) ? MIN_INTN(22) : (int32_t)(values->energy_meter.power_apparent[0] * 10));
+    cached_values[cache_index].s_l2 = values->energy_meter.power_apparent[1] >= 0 ? ((int32_t)(values->energy_meter.power_apparent[1] * 10) > MAX_INTN(22) ? MAX_INTN(22) : (int32_t)(values->energy_meter.power_apparent[1] * 10)) : ((int32_t)(values->energy_meter.power_apparent[1] * 10) < MIN_INTN(22) ? MIN_INTN(22) : (int32_t)(values->energy_meter.power_apparent[1] * 10));
+    cached_values[cache_index].s_l3 = values->energy_meter.power_apparent[2] >= 0 ? ((int32_t)(values->energy_meter.power_apparent[2] * 10) > MAX_INTN(22) ? MAX_INTN(22) : (int32_t)(values->energy_meter.power_apparent[2] * 10)) : ((int32_t)(values->energy_meter.power_apparent[2] * 10) < MIN_INTN(22) ? MIN_INTN(22) : (int32_t)(values->energy_meter.power_apparent[2] * 10));
+    cached_values[cache_index].bat_soc_f10 = (uint16_t)(values->battery.battery_soc <= 0 ? 0 : (values->battery.battery_soc <= 100 ? (values->battery.battery_soc * 10) : 1000));
+    cached_values[cache_index].p_bat = values->battery.battery_power_w >= 0 ? (values->battery.battery_power_w  > MAX_INTN(19) ? MAX_INTN(19) : values->battery.battery_power_w) : (values->battery.battery_power_w < MIN_INTN(19) ? MIN_INTN(19) : values->battery.battery_power_w);
+ 
+    cached_values[cache_index].num_phases = 0;
+    cached_values[cache_index].cp_status = 0;
+    cached_values[cache_index].nrg_i_l1 = 0;
+    cached_values[cache_index].nrg_i_l2 = 0;
+    cached_values[cache_index].nrg_i_l3 = 0;
+    cached_values[cache_index].p_nrgkick = 0;
+
 	cached_values[cache_index].uploaded = false;
 
 	cache_index++;
@@ -119,15 +152,19 @@ static void update_cached_values(cached_solar_values_t *values) {
 }
 
 
-void solar_logger_post_data(cached_solar_values_t *post_data, bool force, bool active_trigger) {
+static uint64_t get_time_in_milliseconds() {
+    return (uint64_t)clock() * 1000 / CLOCKS_PER_SEC;
+}
+
+
+void solar_logger_post_data(huawei_values_t *post_data, bool force) {
 	static uint8_t cached_values_local = 0;
 	time_t ts;
 	char *api_data;
 	char *api_ext;
 
 	if ((ts = time(NULL)) != -1) {
-		post_data->ts = (uint32_t)ts;
-		update_cached_values(post_data);
+		update_cached_values(post_data, ts);
 		if (send_live_mode) {
 			force = true;
 		}
@@ -140,7 +177,7 @@ void solar_logger_post_data(cached_solar_values_t *post_data, bool force, bool a
 			data_strings = malloc(DEBUG_POST_CHUNK_SIZE * sizeof(char *));
 
 			uint8_t cnt = 0;
-			uint64_t upload_timeout = esp_timer_get_time() + MAX_UPLOAD_TIME_US;
+			uint64_t upload_timeout = get_time_in_milliseconds() + MAX_UPLOAD_TIME_US;
 			while (true) {
 				uint16_t temp_upload_index = upload_index + cnt;
 				if (temp_upload_index >= MAX_AMOUNT_OF_CACHED_DATA) {
@@ -152,31 +189,68 @@ void solar_logger_post_data(cached_solar_values_t *post_data, bool force, bool a
 						break;
 					}
 				}
-
-				asprintf(&data_strings[cnt],"%s{\"ts\":%lu,\"i_l1\":%.2f,\"i_l2\":%.2f,\"i_l3\":%.2f,\"u_l1\":%.1f,\"u_l2\":%.1f,\"u_l3\":%.1f,\"p_l1\":%.1f,"
-				                                "\"p_l2\":%.1f,\"p_l3\":%.1f,\"p_total\":%.1f,\"s_l1\":%.1f,\"s_l2\":%.1f,\"s_l3\":%.1f,\"type_e_lim\":%hhu,"
-				                                "\"e_s_total\":%llu,\"e_p_total\":%llu,\"e_period_start\":%llu,\"ts_period_start\":%lu,\"e_period_end\":%llu,\"ts_period_end\":%lu,\"p_nrg_total\":[%d],\"state_sm\":[%hhu],\"i_req\":[%.1f],\"cp_stat\":[%hhu],\"rel_stat\":[%hhu],"
-				                                "\"phase_det_status\":[%hhu],\"phase_det_mask\":[%hhu],\"i_l1_nrg\":[%.3f],\"i_l2_nrg\":[%.3f],\"i_l3_nrg\":[%.3f],\"i_n_nrg\":[%.3f],\"u_l1_nrg\":[%.2f],\"u_l2_nrg\":[%.2f],\"u_l3_nrg\":[%.2f]"
-				                                "%s%s%s%s%s%s}", cnt != 0 ? "," : "\0",
-				             cached_values[temp_upload_index].ts, ((float)(cached_values[temp_upload_index].i_l1) / 100),
-				             ((float)(cached_values[temp_upload_index].i_l2) / 100), ((float)(cached_values[temp_upload_index].i_l3) / 100),
-				             ((float)(cached_values[temp_upload_index].u_l1) / 10), ((float)(cached_values[temp_upload_index].u_l2) / 10),
-				             ((float)(cached_values[temp_upload_index].u_l3) / 10), ((float)(cached_values[temp_upload_index].p_l1) / 10),
-				             ((float)(cached_values[temp_upload_index].p_l2) / 10), ((float)(cached_values[temp_upload_index].p_l3) / 10),
-				             ((float)(cached_values[temp_upload_index].p_total) / 10), ((float)(cached_values[temp_upload_index].s_l1) / 10),
-				             ((float)(cached_values[temp_upload_index].s_l2) / 10), ((float)(cached_values[temp_upload_index].s_l3) / 10),  cached_values[temp_upload_index].use_apparent,
-				             cached_values[temp_upload_index].energy_s_total, cached_values[temp_upload_index].energy_p_total,
-							 cached_values[temp_upload_index].energy_period_start, cached_values[temp_upload_index].ts_period_start,
-                             cached_values[temp_upload_index].max_energy_period_end_real, cached_values[temp_upload_index].ts_period_end,
-							 cached_values[temp_upload_index].p_nrgkick, cached_values[temp_upload_index].sm_state,
-							 ((float)(cached_values[temp_upload_index].sm_to_main) / 10), cached_values[temp_upload_index].cp_status, cached_values[temp_upload_index].relay_state,
-							 cached_values[temp_upload_index].phase_detection_status, cached_values[temp_upload_index].phase_detection_mask, (float)(cached_values[temp_upload_index].nrg_i_l1) / 1000,
-							 (float)(cached_values[temp_upload_index].nrg_i_l2) / 1000, (float)(cached_values[temp_upload_index].nrg_i_l3) / 1000,(float)(cached_values[temp_upload_index].nrg_i_n) / 1000,
-							 (float)(cached_values[temp_upload_index].nrg_u_l1) / 100, (float)(cached_values[temp_upload_index].nrg_u_l2) / 100, (float)(cached_values[temp_upload_index].nrg_u_l3) / 100,
-				             ext_data != NULL ? "," : "\0", ext_data != NULL ? ext_data : "\0",
-				             api_data != NULL ? "," : "\0", api_data != NULL ? api_data : "\0",
-				             api_ext != NULL ? "," : "\0", api_ext != NULL ? api_ext : "\0");
-
+            asprintf(&data_strings[cnt], 
+                "power_data,source=grid "
+                "p_pv=%d,"
+                "p_inv_ac=%d,"
+                "p_grid=%d,"
+                "p_load=%d,"
+                "p_bat=%d,"
+                "soc=%f,"
+                "i_l1=%.2f,"
+                "u_l1=%.1f,"
+                "i_l2=%.2f,"
+                "u_l2=%.1f,"
+                "i_l3=%.2f,"
+                "u_l3=%.1f,"
+                "p_l1=%.2f,"
+                "p_l2=%.2f,"
+                "p_l3=%.2f,"
+                "s_l1=%.2f,"
+                "s_l2=%.2f,"
+                "s_l3=%.2f,"
+                "energy_prod_day=%u,"
+                "energy_prod_wh=%lu,"
+                "energy_exp_wh=%lu,"
+                "energy_imp_wh=%lu,"
+                "cp_status=%u,"
+                "num_phases=%u,"
+                "nrg_i_l1=%.2f,"
+                "nrg_i_l2=%.2f,"
+                "nrg_i_l3=%.2f,"
+                "p_nrgkick=%hd"
+                " %u000000000\n"
+                ,
+                cached_values[temp_upload_index].p_pv,
+                cached_values[temp_upload_index].p_inv_ac,
+                cached_values[temp_upload_index].p_grid,
+                cached_values[temp_upload_index].p_load,
+                cached_values[temp_upload_index].p_bat,
+                (float)(cached_values[temp_upload_index].bat_soc_f10) / 10,
+                (float)(cached_values[temp_upload_index].i_l1) / 100,
+                (float)(cached_values[temp_upload_index].u_l1) / 10,
+                (float)(cached_values[temp_upload_index].i_l2) / 100,
+                (float)(cached_values[temp_upload_index].u_l2) / 10,
+                (float)(cached_values[temp_upload_index].i_l3) / 100,
+                (float)(cached_values[temp_upload_index].u_l3) / 10,
+                (float)(cached_values[temp_upload_index].p_l1) / 10,
+                (float)(cached_values[temp_upload_index].p_l2) / 10,
+                (float)(cached_values[temp_upload_index].p_l3) / 10,
+                (float)(cached_values[temp_upload_index].s_l1) / 10,
+                (float)(cached_values[temp_upload_index].s_l2) / 10,
+                (float)(cached_values[temp_upload_index].s_l3) / 10,
+                cached_values[temp_upload_index].energy_prod_day,
+                cached_values[temp_upload_index].energy_prod_wh,
+                cached_values[temp_upload_index].energy_exp_wh,
+                cached_values[temp_upload_index].energy_imp_wh,
+                cached_values[temp_upload_index].cp_status,
+                cached_values[temp_upload_index].num_phases,
+                (float)cached_values[temp_upload_index].nrg_i_l1,
+                (float)cached_values[temp_upload_index].nrg_i_l2,
+                (float)cached_values[temp_upload_index].nrg_i_l3,
+                cached_values[temp_upload_index].p_nrgkick,
+                cached_values[temp_upload_index].ts
+            );
 
 				if (cnt == DEBUG_POST_CHUNK_SIZE - 1 || temp_upload_index == (cache_index == 0 ? (MAX_AMOUNT_OF_CACHED_DATA - 1) : (cache_index - 1))) {
 					if (temp_upload_index == (cache_index == 0 ? (MAX_AMOUNT_OF_CACHED_DATA - 1) : (cache_index - 1)) && cnt != DEBUG_POST_CHUNK_SIZE - 1) {
@@ -184,7 +258,7 @@ void solar_logger_post_data(cached_solar_values_t *post_data, bool force, bool a
 							data_strings[x] = NULL;
 						}
 					}
-					size = asprintf(&data, "{\"data\":[%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s]}",
+					size = asprintf(&data, "%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s",
 					                    data_strings[0] != NULL ? data_strings[0] : "\0", data_strings[1] != NULL ? data_strings[1] : "\0",
 					                    data_strings[2] != NULL ? data_strings[2] : "\0", data_strings[3] != NULL ? data_strings[3] : "\0",
 					                    data_strings[4] != NULL ? data_strings[4] : "\0", data_strings[5] != NULL ? data_strings[5] : "\0",
@@ -200,9 +274,8 @@ void solar_logger_post_data(cached_solar_values_t *post_data, bool force, bool a
 					                    data_strings[24] != NULL ? data_strings[24] : "\0", data_strings[25] != NULL ? data_strings[25] : "\0",
 					                    data_strings[26] != NULL ? data_strings[26] : "\0", data_strings[27] != NULL ? data_strings[27] : "\0",
 					                    data_strings[28] != NULL ? data_strings[28] : "\0", data_strings[29] != NULL ? data_strings[29] : "\0");
-                   
 					
-					if (db_handler_send_solar_values(NULL) == DB_HANDLER_OK) { // TODO: here add right param
+					if (db_handler_send_solar_values(data, size) == DB_HANDLER_OK) {
 						LOGI(TAG, "Successfully posted logging data");
 						for (uint8_t i = 0; i < (cnt + 1); i++) {
 							if ((upload_index + i) < MAX_AMOUNT_OF_CACHED_DATA) {
@@ -222,7 +295,7 @@ void solar_logger_post_data(cached_solar_values_t *post_data, bool force, bool a
 							LOGI(TAG, "All uploaded!");
 							break;
 						}
-						if (esp_timer_get_time() >= upload_timeout) {
+						if (get_time_in_milliseconds() >= upload_timeout) {
 							LOGI(TAG, "Upload time reached timeout --> upload remaining offline data in next cycle");
 							send_live_mode = true;
 							break;
@@ -230,10 +303,9 @@ void solar_logger_post_data(cached_solar_values_t *post_data, bool force, bool a
 						for (uint8_t i = 0; i < DEBUG_POST_CHUNK_SIZE; i++) {
 							FREE_MEM(data_strings[i]);
 						}
-						vTaskDelay(10);
 					}
 					else {
-						LOGE(TAG, "Error during uploading of logging data");
+   					LOGE(TAG, "Error during uploading of logging data");
 						FREE_MEM(data);
 						break;
 					}
@@ -254,16 +326,12 @@ void solar_logger_post_data(cached_solar_values_t *post_data, bool force, bool a
 }
 
 
-__attribute__((unused)) void solar_logger_trigger_post_request(solar_options_t *options) {
-	//solar_logger_post_data(options, NULL, true, false);
-}
-
-
 void solar_logger_init() {
 	if (cached_values == NULL) {
-		cached_values = nrgsystem_malloc_extr(MAX_AMOUNT_OF_CACHED_DATA * sizeof(solar_cached_values_t));
+		cached_values = malloc(MAX_AMOUNT_OF_CACHED_DATA * sizeof(cached_solar_values_t));
 	}
-	ext_cached_values_info.upload_index = 0;
+	upload_index = 0;
+	cached_values_info.num_of_cached_values = 0;
 }
 
 

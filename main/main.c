@@ -8,6 +8,7 @@
 #include "modbus_tcp_server.h"
 #include "modbus_tcp_poll.h"
 #include "http_server.h"
+#include "solar_logger.h"
 
 
 #define TAG "modbus_tcp_proxy"
@@ -47,8 +48,9 @@ int main() {
 
     logging_set_global_log_level(LOG_LEVEL_INFO);
 
-    modbus_tcp_server_start(502);
-    modbus_tcp_poll_start("192.168.8.85", 502);
+    solar_logger_init();
+    modbus_tcp_server_start(5502);
+    modbus_tcp_poll_start("192.168.8.90", 5502);
     http_server_start(80);
 
     event_loop();
@@ -57,6 +59,7 @@ int main() {
     modbus_tcp_server_stop();
     modbus_tcp_poll_stop();
     http_server_stop();
+    solar_logger_deinit();
     LOGI(TAG, "Shutdown complete.");
 
     return 0;

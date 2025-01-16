@@ -8,88 +8,13 @@
 #include "db_handler.h"
 
 
-#define INFLUXDB_HOST "10.0.2.114"
+#define INFLUXDB_HOST "192.168.8.90"
 #define INFLUXDB_PORT 8086
 #define BUCKET "solarlogging"
 #define ORG "kloibi"
 #define TOKEN ""
 
-
 #define TAG "db_handler"
-
-
-static void send_to_influxdb(const char *data) {
-    int sock;
-    struct sockaddr_in server;
-    char *request = NULL;
-    char *response = NULL;
-
-    // Create socket
-    sock = socket(AF_INET, SOCK_STREAM, 0);
-    if (sock == -1) {
-        perror("Socket creation failed");
-        exit(1);
-    }
-
-    // Configure server address
-    server.sin_addr.s_addr = inet_addr(INFLUXDB_HOST);
-    server.sin_family = AF_INET;
-    server.sin_port = htons(INFLUXDB_PORT);
-
-    // Connect to the server
-    if (connect(sock, (struct sockaddr *)&server, sizeof(server)) < 0) {
-        perror("Connection failed");
-        close(sock);
-        exit(1);
-    }
-
-    printf("Connected to InfluxDB server.\n");
-
-    // Prepare the HTTP POST request dynamically
-    if (asprintf(&request,
-                 "POST /api/v2/write?bucket=%s&org=%s HTTP/1.1\r\n"
-                 "Host: %s:%d\r\n"
-                 "Authorization: Token %s\r\n"
-                 "Content-Type: text/plain\r\n"
-                 "Content-Length: %ld\r\n"
-                 "\r\n"
-                 "%s",
-                 BUCKET, ORG, INFLUXDB_HOST, INFLUXDB_PORT, TOKEN, strlen(data), data) == -1) {
-        perror("Failed to allocate memory for request");
-        close(sock);
-        exit(1);
-    }
-
-    // Send the request
-    if (send(sock, request, strlen(request), 0) < 0) {
-        perror("Failed to send request");
-        free(request);
-        close(sock);
-        exit(1);
-    }
-    free(request);
-
-    // Dynamically allocate memory for the response
-    response = malloc(4096); // Adjust size as needed
-    if (!response) {
-        perror("Memory allocation failed");
-        close(sock);
-        exit(1);
-    }
-
-    // Receive the response
-    ssize_t received = recv(sock, response, 4095, 0); // Leave room for null-terminator
-    if (received < 0) {
-        perror("Failed to receive response");
-    } else {
-        response[received] = '\0'; // Null-terminate the response
-        printf("Response from InfluxDB:\n%s\n", response);
-    }
-
-    // Free memory and close the socket
-    free(response);
-    close(sock);
-}
 
 
 static uint8_t query_influxdb(char *query, size_t *query_len) {
@@ -106,10 +31,9 @@ static uint8_t query_influxdb(char *query, size_t *query_len) {
     server.sin_addr.s_addr = inet_addr(INFLUXDB_HOST);
     server.sin_family = AF_INET;
     server.sin_port = htons(INFLUXDB_PORT);
-
-    if (connect(sock, (struct sockaddr *)&server, sizeof(server)) < 0) {
+if (connect(sock, (struct sockaddr *)&server, sizeof(server)) < 0) {
         perror("Connection failed");
-        free(flux_query);
+        free(query);
         return DB_HANDLER_GENERAL_ERROR;
     }
     printf("Connected to InfluxDB server.\n");
@@ -151,6 +75,8 @@ static uint8_t query_influxdb(char *query, size_t *query_len) {
 
     free(response);
     close(sock);
+
+    return DB_HANDLER_OK; //TODO: compelte this code later
 }
 
 
@@ -186,8 +112,6 @@ uint8_t db_handler_request_within_range(char *db_start, char *db_stop, uint32_t 
     }
 
 
-
-    
     rc = DB_HANDLER_OK;
     exit:
     FREE_MEM(start);
@@ -196,6 +120,74 @@ uint8_t db_handler_request_within_range(char *db_start, char *db_stop, uint32_t 
     return rc;
 }
 
-uint8_t db_handler_send_solar_values(huawei_values_t values) {
 
+uint8_t db_handler_send_solar_values(char* formatted_values, size_t formatted_values_len) {
+    uint8_t rc;
+    int sock;
+    struct sockaddr_in server;
+    char *request = NULL;
+    size_t request_len;
+    char *response = NULL;
+    size_t response_len;
+
+    sock = socket(AF_INET, SOCK_STREAM, 0);
+    if (sock == -1) {
+        perror("Socket creation failed");
+        return DB_HANDLER_GENERAL_ERROR;
+    }
+    server.sin_addr.s_addr = inet_addr(INFLUXDB_HOST);
+    server.sin_family = AF_INET;
+    server.sin_port = htons(INFLUXDB_PORT);
+
+    if (connect(sock, (struct sockaddr *)&server, sizeof(server)) < 0) {
+        perror("Connection failed");
+        rc = DB_HANDLER_GENERAL_ERROR;
+        goto exit;
+    }
+    printf("Connected to InfluxDB server.\n");
+
+    if ((request_len = asprintf(&request,
+                 "POST /api/v2/write?bucket=%s&org=%s HTTP/1.1\r\n"
+                 "Host: %s:%d\r\n"
+                 "Authorization: Token %s\r\n"
+                 "Content-Type: text/plain\r\n"
+                 "Content-Length: %zu\r\n"
+                 "\r\n"
+                 "%s",
+                 BUCKET, ORG, INFLUXDB_HOST, INFLUXDB_PORT, TOKEN, formatted_values_len, formatted_values)) <= 0) {
+
+        perror("Failed to allocate memory for request");
+        rc = DB_HANDLER_GENERAL_ERROR;
+        goto exit;
+    }
+    printf("request: %s\n", request);
+    if (send(sock, request, strlen(request), 0) < 0) {
+        perror("Failed to send request");
+        rc = DB_HANDLER_GENERAL_ERROR;
+        goto exit;
+    }
+    FREE_MEM(request);
+
+    response = malloc(4096); // Adjust size as needed
+    if (!response) {
+        perror("Memory allocation failed");
+        rc = DB_HANDLER_GENERAL_ERROR;
+        goto exit;
+    }
+
+    ssize_t received = recv(sock, response, 4095, 0); // Leave room for null-terminator
+    if (received < 0) {
+        perror("Failed to receive response");
+    }
+    else {
+        response[received] = '\0'; // Null-terminate the response
+        printf("Response from InfluxDB:\n%s\n", response);
+    }
+
+    rc = DB_HANDLER_OK;
+    exit:
+    FREE_MEM(request);
+    FREE_MEM(response);
+    close(sock);
+    return rc;
 }

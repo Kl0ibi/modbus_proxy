@@ -1,3 +1,6 @@
+#ifndef HUAWEI_MODBUS_CONVERTER_H
+#define HUAWEI_MODBUS_CONVERTER_H
+
 #include <stdint.h>
 #include <stdbool.h>
 
@@ -48,3 +51,5 @@ typedef struct __attribute__((packed, aligned(2))) {
 
 void huawei_get_info(huawei_info_t *info);
 void huawei_get_values(huawei_values_t *values);
+
+#endif

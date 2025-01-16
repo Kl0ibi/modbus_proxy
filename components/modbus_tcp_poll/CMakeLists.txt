@@ -11,4 +11,6 @@ target_link_libraries(modbus_tcp_poll PUBLIC
     logging
     modbus_tcp_client
     modbus_tcp_server
+    huawei_modbus_converter
+    solar_logger
 )
