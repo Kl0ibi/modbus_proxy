@@ -6,6 +6,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <time.h>
+#include "system.h"
 #include "modbus_tcp_client.h"
 #include "logging.h"
 
@@ -55,18 +56,6 @@ pthread_mutex_t poll_data_mutex = PTHREAD_MUTEX_INITIALIZER;
 static pthread_t polling_thread_id;
 static bool polling_thread_running = false;
 static pthread_mutex_t polling_control_mutex = PTHREAD_MUTEX_INITIALIZER;
-
-
-static void memcpy_reverse(void *d, void *s, unsigned char size) {
-	unsigned char *pd = (unsigned char *) d;
-	unsigned char *ps = (unsigned char *) s;
-
-	ps += size;
-	while (size--) {
-		--ps;
-		*pd++ = *ps;
-	}
-}
 
 
 uint8_t *modbus_tcp_get_poll_data_raw(uint16_t address, uint16_t length, uint16_t *out_length) {

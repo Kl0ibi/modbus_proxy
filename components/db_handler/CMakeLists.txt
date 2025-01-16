@@ -7,5 +7,7 @@ target_include_directories(db_handler PUBLIC
 )
 
 target_link_libraries(db_handler PUBLIC
+    system
     logging
+    huawei_modbus_converter
 )

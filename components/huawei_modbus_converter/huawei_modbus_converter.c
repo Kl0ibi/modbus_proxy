@@ -2,11 +2,9 @@
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>
+#include "system.h"
 #include "modbus_tcp_poll.h"
 #include "huawei_modbus_converter.h"
-
-
-#define FREE_MEM(x) if (x) {free(x); (x) = 0;}
 
 
 typedef struct __attribute__((packed, aligned(2))){

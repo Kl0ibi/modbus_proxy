@@ -7,6 +7,7 @@ target_include_directories(huawei_modbus_converter PUBLIC
 )
 
 target_link_libraries(huawei_modbus_converter PUBLIC
+    system
     logging
     modbus_tcp_poll
     m # math.h

@@ -6,6 +6,7 @@
 #include <arpa/inet.h>
 #include <pthread.h>
 #include <errno.h>
+#include "system.h"
 #include "modbus_tcp_poll.h"
 #include "huawei_modbus_converter.h"
 #include "logging.h"
@@ -13,7 +14,6 @@
 
 #define TAG "http_server"
 
-#define FREE_MEM(x) if (x) {free(x); (x) = 0;}
 
 #define ROOT_URI "/"
 #define VALUES_URI "/values"
@@ -64,10 +64,10 @@ static uint8_t build_payload(request_uri_type type, char **buffer, size_t *buffe
         huawei_get_values(&values);
         body_size = asprintf(&body, 
             "{\"inverter\":{\"pv_dc_w\":%u,\"inv_ac_w\":%d,\"total_pv_energy_wh\":%u,\"daily_pv_energy_wh\":%u},"
-            "\"energy_meter\":{\"p_grid_w\":%d,\"p_load_w\":%d,\"freq_hz\":%.2f,"
-            "\"L1\":{\"current\":%.2f,\"voltage\":%.2f,\"power_real\":%.2f,\"power_apparent\":%.2f},"
-            "\"L2\":{\"current\":%.2f,\"voltage\":%.2f,\"power_real\":%.2f,\"power_apparent\":%.2f},"
-            "\"L3\":{\"current\":%.2f,\"voltage\":%.2f,\"power_real\":%.2f,\"power_apparent\":%.2f},"
+            "\"energy_meter\":{\"p_grid_w\":%d,\"p_load_w\":%d,\"freq_hz\":%.3f,"
+            "\"L1\":{\"current\":%.2f,\"voltage\":%.1f,\"power_real\":%.0f,\"power_apparent\":%.0f},"
+            "\"L2\":{\"current\":%.2f,\"voltage\":%.1f,\"power_real\":%.0f,\"power_apparent\":%.0f},"
+            "\"L3\":{\"current\":%.2f,\"voltage\":%.1f,\"power_real\":%.0f,\"power_apparent\":%.0f},"
             "\"energy_apparent_cons_vah\":%llu,\"energy_real_cons_wh\":%llu,"
             "\"energy_apparent_prod_vah\":%llu,\"energy_real_prod_wh\":%llu},"
             "\"battery\":{\"battery_power_w\":%d,\"battery_soc\":%.2f,"

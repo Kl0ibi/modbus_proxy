@@ -7,6 +7,7 @@ target_include_directories(http_server PUBLIC
 )
 
 target_link_libraries(http_server PUBLIC
+    system
     logging
     modbus_tcp_poll
     huawei_modbus_converter

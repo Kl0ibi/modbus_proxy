@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include "system.h"
 #include "modbus_tcp_client.h"
 #include "logging.h"
 
@@ -29,18 +30,6 @@ typedef struct {
 	uint16_t num_regs;			/*!< Number of registers */
 } modbus_request_t;
 // endregion
-
-
-static void memcpy_reverse(void *d, void *s, unsigned char size) {
-	unsigned char *pd = (unsigned char *) d;
-	unsigned char *ps = (unsigned char *) s;
-
-	ps += size;
-	while (size--) {
-		--ps;
-		*pd++ = *ps;
-	}
-}
 
 
 /**

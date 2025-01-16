@@ -7,5 +7,6 @@ target_include_directories(modbus_tcp_client PUBLIC
 )
 
 target_link_libraries(modbus_tcp_client PUBLIC
+    system
     logging
 )
