@@ -207,6 +207,7 @@ void *polling_thread(void *arg) {
 
     while (polling_thread_running) {
         int32_t sock = -1;
+        uint64_t start_time = get_time_in_milliseconds();
         while (polling_thread_running && sock < 0) {
             sock = modbus_tcp_client_connect(host, &port);
             if (sock < 0) {
@@ -273,7 +274,10 @@ void *polling_thread(void *arg) {
             huawei_values_t values;
             huawei_get_values(&values);
             solar_logger_post_data(&values, true);
-            sleep(DELAY_BETWEEN_POLLS_S); //TODO: add relative delay
+            uint64_t diff_time = get_time_in_milliseconds() - start_time;
+            if (diff_time < DELAY_BETWEEN_POLLS_S) {
+                sleep(DELAY_BETWEEN_POLLS_S - diff_time);
+            }
         }
     }
     pthread_exit(NULL);

@@ -26,7 +26,7 @@ typedef struct __attribute__((packed, aligned(1))) {
 } cached_solar_values_info_t;
 
 
-typedef struct __attribute__((packed, aligned(1))) { //TODO: addd frequency
+typedef struct __attribute__((packed, aligned(1))) test{
 	int32_t p_inv_ac :19;
 	int32_t p_grid :19;
 	int32_t p_load :19;
@@ -52,16 +52,16 @@ typedef struct __attribute__((packed, aligned(1))) { //TODO: addd frequency
 	int32_t s_l1 :22;
 	int32_t s_l2 :22;
 	int32_t s_l3 :22;
-    uint32_t energy_prod_day;
-	uint32_t bat_soc_f10 :10;
+    int32_t freq :22;
 	uint32_t p_pv :18;
 	uint16_t num_phases :2;
+	uint32_t bat_soc_f10 :10;
+    uint32_t energy_prod_day;
 
     uint64_t energy_prod_wh;
     uint64_t energy_exp_wh;
     uint64_t energy_imp_wh;
 } cached_solar_values_t;
-
 
 
 static uint16_t cache_index = 0;
@@ -82,7 +82,6 @@ cached_solar_values_t* solar_logger_get_all_cached_values() {
 }
 
 
-
 static void update_cached_values(huawei_values_t *values, time_t ts) {
     cached_values[cache_index].ts = (uint32_t)ts;
     cached_values[cache_index].p_pv = values->inverter.pv_dc_w > MAX_UINTN(18) ? MAX_UINTN(18) : values->inverter.pv_dc_w;
@@ -92,6 +91,7 @@ static void update_cached_values(huawei_values_t *values, time_t ts) {
     cached_values[cache_index].p_load = values->energy_meter.p_load_w >= 0 ? (values->energy_meter.p_load_w > MAX_INTN(19) ? MAX_INTN(19) : values->energy_meter.p_load_w) : (values->energy_meter.p_load_w < MIN_INTN(19) ? MIN_INTN(19) : values->energy_meter.p_load_w);
     cached_values[cache_index].energy_exp_wh = values->energy_meter.energy_real_prod_wh;
     cached_values[cache_index].energy_imp_wh = values->energy_meter.energy_real_cons_wh;
+    cached_values[cache_index].freq = values->energy_meter.grid_freq_hz >= 0 ? ((int32_t)(values->energy_meter.grid_freq_hz * 100) > MAX_INTN(20) ? MAX_INTN(20) : (int32_t)(values->energy_meter.grid_freq_hz * 100)) : ((int32_t)(values->energy_meter.grid_freq_hz * 100) < MIN_INTN(20) ? MIN_INTN(20) : (int32_t)(values->energy_meter.grid_freq_hz * 100));
     cached_values[cache_index].i_l1 = values->energy_meter.current[0] >= 0 ? ((int32_t)(values->energy_meter.current[0] * 100) > MAX_INTN(20) ? MAX_INTN(20) : (int32_t)(values->energy_meter.current[0] * 100)) : ((int32_t)(values->energy_meter.current[0] * 100) < MIN_INTN(20) ? MIN_INTN(20) : (int32_t)(values->energy_meter.current[0] * 100));
     cached_values[cache_index].i_l2 = values->energy_meter.current[1] >= 0 ? ((int32_t)(values->energy_meter.current[1] * 100) > MAX_INTN(20) ? MAX_INTN(20) : (int32_t)(values->energy_meter.current[1] * 100)) : ((int32_t)(values->energy_meter.current[1] * 100) < MIN_INTN(20) ? MIN_INTN(20) : (int32_t)(values->energy_meter.current[1] * 100));
     cached_values[cache_index].i_l3 = values->energy_meter.current[2] >= 0 ? ((int32_t)(values->energy_meter.current[2] * 100) > MAX_INTN(20) ? MAX_INTN(20) : (int32_t)(values->energy_meter.current[2] * 100)) : ((int32_t)(values->energy_meter.current[2] * 100) < MIN_INTN(20) ? MIN_INTN(20) : (int32_t)(values->energy_meter.current[2] * 100));
@@ -152,11 +152,6 @@ static void update_cached_values(huawei_values_t *values, time_t ts) {
 }
 
 
-static uint64_t get_time_in_milliseconds() {
-    return (uint64_t)clock() * 1000 / CLOCKS_PER_SEC;
-}
-
-
 void solar_logger_post_data(huawei_values_t *post_data, bool force) {
 	static uint8_t cached_values_local = 0;
 	time_t ts;
@@ -189,69 +184,69 @@ void solar_logger_post_data(huawei_values_t *post_data, bool force) {
 						break;
 					}
 				}
-            asprintf(&data_strings[cnt], 
-                "power_data,source=grid "
-                "p_pv=%d,"
-                "p_inv_ac=%d,"
-                "p_grid=%d,"
-                "p_load=%d,"
-                "p_bat=%d,"
-                "soc=%f,"
-                "i_l1=%.2f,"
-                "u_l1=%.1f,"
-                "i_l2=%.2f,"
-                "u_l2=%.1f,"
-                "i_l3=%.2f,"
-                "u_l3=%.1f,"
-                "p_l1=%.2f,"
-                "p_l2=%.2f,"
-                "p_l3=%.2f,"
-                "s_l1=%.2f,"
-                "s_l2=%.2f,"
-                "s_l3=%.2f,"
-                "energy_prod_day=%u,"
-                "energy_prod_wh=%lu,"
-                "energy_exp_wh=%lu,"
-                "energy_imp_wh=%lu,"
-                "cp_status=%u,"
-                "num_phases=%u,"
-                "nrg_i_l1=%.2f,"
-                "nrg_i_l2=%.2f,"
-                "nrg_i_l3=%.2f,"
-                "p_nrgkick=%hd"
-                " %u000000000\n"
-                ,
-                cached_values[temp_upload_index].p_pv,
-                cached_values[temp_upload_index].p_inv_ac,
-                cached_values[temp_upload_index].p_grid,
-                cached_values[temp_upload_index].p_load,
-                cached_values[temp_upload_index].p_bat,
-                (float)(cached_values[temp_upload_index].bat_soc_f10) / 10,
-                (float)(cached_values[temp_upload_index].i_l1) / 100,
-                (float)(cached_values[temp_upload_index].u_l1) / 10,
-                (float)(cached_values[temp_upload_index].i_l2) / 100,
-                (float)(cached_values[temp_upload_index].u_l2) / 10,
-                (float)(cached_values[temp_upload_index].i_l3) / 100,
-                (float)(cached_values[temp_upload_index].u_l3) / 10,
-                (float)(cached_values[temp_upload_index].p_l1) / 10,
-                (float)(cached_values[temp_upload_index].p_l2) / 10,
-                (float)(cached_values[temp_upload_index].p_l3) / 10,
-                (float)(cached_values[temp_upload_index].s_l1) / 10,
-                (float)(cached_values[temp_upload_index].s_l2) / 10,
-                (float)(cached_values[temp_upload_index].s_l3) / 10,
-                cached_values[temp_upload_index].energy_prod_day,
-                cached_values[temp_upload_index].energy_prod_wh,
-                cached_values[temp_upload_index].energy_exp_wh,
-                cached_values[temp_upload_index].energy_imp_wh,
-                cached_values[temp_upload_index].cp_status,
-                cached_values[temp_upload_index].num_phases,
-                (float)cached_values[temp_upload_index].nrg_i_l1,
-                (float)cached_values[temp_upload_index].nrg_i_l2,
-                (float)cached_values[temp_upload_index].nrg_i_l3,
-                cached_values[temp_upload_index].p_nrgkick,
-                cached_values[temp_upload_index].ts
-            );
-
+                asprintf(&data_strings[cnt],
+                    "power_data,source=grid "
+                    "p_pv=%d,"
+                    "p_inv_ac=%d,"
+                    "p_grid=%d,"
+                    "p_load=%d,"
+                    "p_bat=%d,"
+                    "soc=%f,"
+                    "freq=%.2f,"
+                    "i_l1=%.2f,"
+                    "u_l1=%.1f,"
+                    "i_l2=%.2f,"
+                    "u_l2=%.1f,"
+                    "i_l3=%.2f,"
+                    "u_l3=%.1f,"
+                    "p_l1=%.2f,"
+                    "p_l2=%.2f,"
+                    "p_l3=%.2f,"
+                    "s_l1=%.2f,"
+                    "s_l2=%.2f,"
+                    "s_l3=%.2f,"
+                    "energy_prod_day=%u,"
+                    "energy_prod_wh=%lu,"
+                    "energy_exp_wh=%lu,"
+                    "energy_imp_wh=%lu,"
+                    "cp_status=%u,"
+                    "num_phases=%u,"
+                    "nrg_i_l1=%.2f,"
+                    "nrg_i_l2=%.2f,"
+                    "nrg_i_l3=%.2f,"
+                    "p_nrgkick=%hd"
+                    " %u000000000\n",
+                    cached_values[temp_upload_index].p_pv,
+                    cached_values[temp_upload_index].p_inv_ac,
+                    cached_values[temp_upload_index].p_grid,
+                    cached_values[temp_upload_index].p_load,
+                    cached_values[temp_upload_index].p_bat,
+                    (float)(cached_values[temp_upload_index].bat_soc_f10) / 10,
+                    (float)(cached_values[temp_upload_index].freq) / 100,
+                    (float)(cached_values[temp_upload_index].i_l1) / 100,
+                    (float)(cached_values[temp_upload_index].u_l1) / 10,
+                    (float)(cached_values[temp_upload_index].i_l2) / 100,
+                    (float)(cached_values[temp_upload_index].u_l2) / 10,
+                    (float)(cached_values[temp_upload_index].i_l3) / 100,
+                    (float)(cached_values[temp_upload_index].u_l3) / 10,
+                    (float)(cached_values[temp_upload_index].p_l1) / 10,
+                    (float)(cached_values[temp_upload_index].p_l2) / 10,
+                    (float)(cached_values[temp_upload_index].p_l3) / 10,
+                    (float)(cached_values[temp_upload_index].s_l1) / 10,
+                    (float)(cached_values[temp_upload_index].s_l2) / 10,
+                    (float)(cached_values[temp_upload_index].s_l3) / 10,
+                    cached_values[temp_upload_index].energy_prod_day,
+                    cached_values[temp_upload_index].energy_prod_wh,
+                    cached_values[temp_upload_index].energy_exp_wh,
+                    cached_values[temp_upload_index].energy_imp_wh,
+                    cached_values[temp_upload_index].cp_status,
+                    cached_values[temp_upload_index].num_phases,
+                    (float)cached_values[temp_upload_index].nrg_i_l1,
+                    (float)cached_values[temp_upload_index].nrg_i_l2,
+                    (float)cached_values[temp_upload_index].nrg_i_l3,
+                    cached_values[temp_upload_index].p_nrgkick,
+                    cached_values[temp_upload_index].ts
+                );
 				if (cnt == DEBUG_POST_CHUNK_SIZE - 1 || temp_upload_index == (cache_index == 0 ? (MAX_AMOUNT_OF_CACHED_DATA - 1) : (cache_index - 1))) {
 					if (temp_upload_index == (cache_index == 0 ? (MAX_AMOUNT_OF_CACHED_DATA - 1) : (cache_index - 1)) && cnt != DEBUG_POST_CHUNK_SIZE - 1) {
 						for (uint8_t x = cnt + 1; x < DEBUG_POST_CHUNK_SIZE; x++) {

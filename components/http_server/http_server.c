@@ -68,8 +68,8 @@ static uint8_t build_payload(request_uri_type type, char **buffer, size_t *buffe
             "\"L1\":{\"current\":%.2f,\"voltage\":%.1f,\"power_real\":%.0f,\"power_apparent\":%.0f},"
             "\"L2\":{\"current\":%.2f,\"voltage\":%.1f,\"power_real\":%.0f,\"power_apparent\":%.0f},"
             "\"L3\":{\"current\":%.2f,\"voltage\":%.1f,\"power_real\":%.0f,\"power_apparent\":%.0f},"
-            "\"energy_apparent_cons_vah\":%llu,\"energy_real_cons_wh\":%llu,"
-            "\"energy_apparent_prod_vah\":%llu,\"energy_real_prod_wh\":%llu},"
+            "\"energy_apparent_cons_vah\":%lu,\"energy_real_cons_wh\":%lu,"
+            "\"energy_apparent_prod_vah\":%lu,\"energy_real_prod_wh\":%lu},"
             "\"battery\":{\"battery_power_w\":%d,\"battery_soc\":%.2f,"
             "\"battery_working_mode\":%u}}", 
             values.inverter.pv_dc_w, 

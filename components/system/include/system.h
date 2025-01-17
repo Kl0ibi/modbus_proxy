@@ -1,4 +1,4 @@
-#include <stdio.h>
+#include <stdint.h>
 
 
 #define FREE_MEM(x) if (x) {free(x); (x) = 0;}
@@ -10,3 +10,5 @@
 
 
 void memcpy_reverse(void *d, void *s, unsigned char size);
+void trim_leading_whitespace(char *str);
+uint64_t get_time_in_milliseconds();

@@ -38,6 +38,7 @@ void event_loop() {
     }
 }
 
+
 int main() {
     struct sigaction sa;
     sa.sa_handler = handle_signal;
