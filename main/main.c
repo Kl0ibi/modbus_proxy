@@ -51,14 +51,15 @@ int main() {
 
     solar_logger_init();
     modbus_tcp_server_start(5502);
-    modbus_tcp_poll_start("192.168.8.90", 5502);
-    http_server_start(80);
+    modbus_tcp_poll_start_client(HUAWEI, "192.168.8.90", 5502);
+    modbus_tcp_poll_start_client(NRGKICK, "192.168.8.95", 502);
+    http_server_start(8000);
 
     event_loop();
 
     LOGI(TAG, "Stopping services...");
     modbus_tcp_server_stop();
-    modbus_tcp_poll_stop();
+    modbus_tcp_poll_stop_all();
     http_server_stop();
     solar_logger_deinit();
     LOGI(TAG, "Shutdown complete.");

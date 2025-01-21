@@ -85,7 +85,7 @@ static void handle_modbus_request(client_info_t *client) {
     start_address = (buffer[8] << 8) | buffer[9];
     quantity = (buffer[10] << 8) | buffer[11];
     LOGI(TAG, "Received request for address %u and quantity %u", start_address, quantity);
-    data = modbus_tcp_get_poll_data_raw(start_address, quantity, &len);
+    data = modbus_tcp_poll_get_client_data_raw(HUAWEI, start_address, quantity, &len);
     if (data) {
         uint8_t *response;
         if ((response = calloc(1, (9 + len))) == NULL) {

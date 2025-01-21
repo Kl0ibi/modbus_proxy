@@ -61,45 +61,45 @@ void huawei_get_values(huawei_values_t *values) {
 	uint16_t temp_bat_working_mode;
     huawei_em_request_t em;
 
-    modbus_tcp_get_poll_data(32080, 2, true, (uint8_t *)&values->inverter.inv_ac_w);
+    modbus_tcp_poll_get_client_data(HUAWEI, 32080, 2, true, (uint8_t *)&values->inverter.inv_ac_w);
     if (isnan((double)values->inverter.inv_ac_w)) {
         values->inverter.inv_ac_w = 0;
     }
-    modbus_tcp_get_poll_data(32106, 2, true, (uint8_t *)&values->inverter.total_pv_energy_wh);
+    modbus_tcp_poll_get_client_data(HUAWEI, 32106, 2, true, (uint8_t *)&values->inverter.total_pv_energy_wh);
     if (isnan((double)values->inverter.total_pv_energy_wh)) {
         values->inverter.total_pv_energy_wh = 0;
     }
     else {
         values->inverter.total_pv_energy_wh *= 100;
     }
-    modbus_tcp_get_poll_data(32114, 2, true, (uint8_t *)&values->inverter.daily_pv_energy_wh);
+    modbus_tcp_poll_get_client_data(HUAWEI, 32114, 2, true, (uint8_t *)&values->inverter.daily_pv_energy_wh);
     if (isnan((double)values->inverter.daily_pv_energy_wh)) {
         values->inverter.daily_pv_energy_wh = 0;
     }
     else {
         values->inverter.daily_pv_energy_wh *= 10;
     }
-    modbus_tcp_get_poll_data(37765, 2, true, (uint8_t *)&values->battery.battery_power_w);
+    modbus_tcp_poll_get_client_data(HUAWEI, 37765, 2, true, (uint8_t *)&values->battery.battery_power_w);
     if (isnan((double)values->battery.battery_power_w)) {
         values->battery.battery_power_w = 0;
     }
     else {
         values->battery.battery_power_w = (-values->battery.battery_power_w); // huawei inverted
     }
-    modbus_tcp_get_poll_data(37760, 1, true, (uint8_t *)&temp_bat_soc);
+    modbus_tcp_poll_get_client_data(HUAWEI, 37760, 1, true, (uint8_t *)&temp_bat_soc);
     if (isnan((double)temp_bat_soc)) {
         values->battery.battery_soc = 0;
     }
     else {
         values->battery.battery_soc = (float)(temp_bat_soc) / 10;
     }
-    modbus_tcp_get_poll_data(47086, 1, true, (uint8_t *)&temp_bat_working_mode);
+    modbus_tcp_poll_get_client_data(HUAWEI, 47086, 1, true, (uint8_t *)&temp_bat_working_mode);
     if (isnan((double)temp_bat_working_mode)) {
         values->battery.battery_working_mode = 0;
     }
     temp_pv_dc_w = values->inverter.inv_ac_w - values->battery.battery_power_w;
     values->inverter.pv_dc_w = temp_pv_dc_w < 0 ? 0 : temp_pv_dc_w;
-    modbus_tcp_get_poll_data(37101, 37, true, (uint8_t *)&em);
+    modbus_tcp_poll_get_client_data(HUAWEI, 37101, 37, true, (uint8_t *)&em);
     if (!em.power_sf) {
         em.power_sf = 1;
     }
@@ -141,8 +141,6 @@ void huawei_get_values(huawei_values_t *values) {
 }
 
 
-
-
 void huawei_get_info(huawei_info_t *info) {
 	char *inv_unique_id = NULL;
 	uint16_t inv_unique_id_len;
@@ -155,7 +153,7 @@ void huawei_get_info(huawei_info_t *info) {
 	uint16_t meter_status;
 	uint16_t meter_type;
 
-    modbus_tcp_get_poll_str(30000, 15, false, &inv_model, &inv_model_len);
+    modbus_tcp_poll_get_client_data_str(HUAWEI, 30000, 15, false, &inv_model, &inv_model_len);
     if (inv_model_len > 0 && inv_model[0] != '\0') {
         memcpy(info->inverter.model, inv_model, sizeof(info->inverter.model));
     }
@@ -163,7 +161,7 @@ void huawei_get_info(huawei_info_t *info) {
         info->inverter.model[0] = '\0';
     }
     FREE_MEM(inv_model);
-    modbus_tcp_get_poll_str(30015, 10, false, &inv_unique_id, &inv_unique_id_len);
+    modbus_tcp_poll_get_client_data_str(HUAWEI, 30015, 10, false, &inv_unique_id, &inv_unique_id_len);
     if(inv_unique_id_len > 0 && inv_unique_id[0] != '\0') {
         memcpy(info->inverter.unique_id, inv_unique_id, sizeof(info->inverter.unique_id));
     }
@@ -171,28 +169,28 @@ void huawei_get_info(huawei_info_t *info) {
         info->inverter.unique_id[0] = '\0';
     }
     FREE_MEM(inv_unique_id);
-    modbus_tcp_get_poll_data(30073, 2, true, (uint8_t *)&info->inverter.max_power_ac_w);
-    modbus_tcp_get_poll_data(37125 , 1, true, (uint8_t *)&meter_type);
+    modbus_tcp_poll_get_client_data(HUAWEI, 30073, 2, true, (uint8_t *)&info->inverter.max_power_ac_w);
+    modbus_tcp_poll_get_client_data(HUAWEI, 37125 , 1, true, (uint8_t *)&meter_type);
     memcpy(info->energy_meter.model, huawei_em_type_to_string(meter_type), sizeof(info->energy_meter.model));
     uint8_t model_len = 0;
     uint8_t unique_len = 0;
-    modbus_tcp_get_poll_data( 37000, 1, true, (uint8_t *)&bat_status);
+    modbus_tcp_poll_get_client_data(HUAWEI, 37000, 1, true, (uint8_t *)&bat_status);
     if (bat_status != 0) {
-        modbus_tcp_get_poll_data(47000, 1, true, (uint8_t *)&bat_product_model);
+        modbus_tcp_poll_get_client_data(HUAWEI, 47000, 1, true, (uint8_t *)&bat_product_model);
         model_len = snprintf(info->battery.model, sizeof(info->battery.model), "%s", huawei_battery_product_mode_to_string(bat_product_model));
-        modbus_tcp_get_poll_str(37052, 10, false, &bat_unique_id, &bat_unique_id_len);
+        modbus_tcp_poll_get_client_data_str(HUAWEI, 37052, 10, false, &bat_unique_id, &bat_unique_id_len);
         if (bat_unique_id_len > 0 && bat_unique_id[0] != '\0') { // bat1
             memcpy(info->battery.unique_id, bat_unique_id, sizeof(info->battery.unique_id));
             unique_len = bat_unique_id_len;
         }
         FREE_MEM(bat_unique_id);
     }
-    modbus_tcp_get_poll_data( 37741, 1, true, (uint8_t *)&bat_status);
+    modbus_tcp_poll_get_client_data(HUAWEI, 37741, 1, true, (uint8_t *)&bat_status);
     if (bat_status != 0) { // bat2
-        modbus_tcp_get_poll_data(47089, 1, true, (uint8_t *)&bat_product_model);
+        modbus_tcp_poll_get_client_data(HUAWEI, 47089, 1, true, (uint8_t *)&bat_product_model);
         model_len = snprintf(info->battery.model + model_len, sizeof(info->battery.model), "%s%s", model_len ? " + ": "", huawei_battery_product_mode_to_string(bat_product_model));
         if (unique_len == 0) {
-            modbus_tcp_get_poll_str(37700, 10, false, &bat_unique_id, &bat_unique_id_len);
+            modbus_tcp_poll_get_client_data_str(HUAWEI, 37700, 10, false, &bat_unique_id, &bat_unique_id_len);
             if (bat_unique_id_len > 0 && bat_unique_id[0] != '\0') {
                 memcpy(info->battery.unique_id, bat_unique_id, sizeof(info->battery.unique_id));
                 unique_len = bat_unique_id_len;
