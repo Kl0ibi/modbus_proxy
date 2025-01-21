@@ -97,6 +97,9 @@ void huawei_get_values(huawei_values_t *values) {
     if (isnan((double)temp_bat_working_mode)) {
         values->battery.battery_working_mode = 0;
     }
+    else {
+        values->battery.battery_working_mode = temp_bat_working_mode;
+    }
     temp_pv_dc_w = values->inverter.inv_ac_w - values->battery.battery_power_w;
     values->inverter.pv_dc_w = temp_pv_dc_w < 0 ? 0 : temp_pv_dc_w;
     modbus_tcp_poll_get_client_data(HUAWEI, 37101, 37, true, (uint8_t *)&em);
