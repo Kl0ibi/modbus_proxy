@@ -245,8 +245,8 @@ void solar_logger_post_data(huawei_values_t *huawei_data, nrgkick_values_t *nrgk
                     "connector_temp_l2=%.2f,"
                     "connector_temp_l3=%.2f,"
                     "max_current_to_ev=%.1f,"
-                    "user_set_current=%.1f,"
-                    "%u000000000\n",
+                    "user_set_current=%.1f"
+                    " %u000000000\n",
                     cached_values[temp_upload_index].p_pv,
                     cached_values[temp_upload_index].p_inv_ac,
                     cached_values[temp_upload_index].p_grid,
@@ -310,7 +310,6 @@ void solar_logger_post_data(huawei_values_t *huawei_data, nrgkick_values_t *nrgk
 					                    data_strings[26] != NULL ? data_strings[26] : "\0", data_strings[27] != NULL ? data_strings[27] : "\0",
 					                    data_strings[28] != NULL ? data_strings[28] : "\0", data_strings[29] != NULL ? data_strings[29] : "\0");
 					
-                    printf("post data: %s\n", data); //TODO: remove
 					if (db_handler_send_solar_values(data, size) == DB_HANDLER_OK) {
 						LOGI(TAG, "Successfully posted logging data");
 						for (uint8_t i = 0; i < (cnt + 1); i++) {
