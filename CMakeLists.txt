@@ -15,6 +15,7 @@ add_subdirectory(components/modbus_tcp_client)
 add_subdirectory(components/modbus_tcp_server)
 add_subdirectory(components/modbus_tcp_poll)
 add_subdirectory(components/huawei_modbus_converter)
+add_subdirectory(components/nrgkick_modbus_converter)
 add_subdirectory(components/db_handler)
 add_subdirectory(components/http_server)
 add_subdirectory(components/solar_logger)
@@ -32,6 +33,7 @@ target_link_libraries(modbus_proxy
     modbus_tcp_server
     logging
     huawei_modbus_converter
+    nrgkick_modbus_converter
     db_handler
     http_server
     solar_logger
@@ -46,6 +48,7 @@ target_include_directories(modbus_proxy PUBLIC
     ${CMAKE_SOURCE_DIR}/components/modbus_tcp_poll/include
     ${CMAKE_SOURCE_DIR}/components/logging/include
     ${CMAKE_SOURCE_DIR}/components/huawei_modbus_converter/include
+    ${CMAKE_SOURCE_DIR}/components/nrgkick_modbus_converter/include
     ${CMAKE_SOURCE_DIR}/components/db_handler/include
     ${CMAKE_SOURCE_DIR}/components/http_server/include
     ${CMAKE_SOURCE_DIR}/components/solar_logger/include

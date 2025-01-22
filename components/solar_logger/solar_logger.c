@@ -54,13 +54,25 @@ typedef struct __attribute__((packed, aligned(1))) test{
 	int32_t s_l3 :22;
     int32_t freq :22;
 	uint32_t p_pv :18;
-	uint16_t num_phases :2;
 	uint32_t bat_soc_f10 :10;
     uint32_t energy_prod_day;
+    // 2bits free
 
     uint64_t energy_prod_wh;
     uint64_t energy_exp_wh;
     uint64_t energy_imp_wh;
+
+    uint8_t warning_code;
+    uint8_t error_code;
+    int16_t connector_temp_l1;
+    int16_t connector_temp_l2;
+    int16_t connector_temp_l3;
+    uint16_t max_current_to_ev;
+    uint16_t user_set_current;
+    uint32_t charged_energy;
+    int16_t housing_temp;
+    uint8_t switched_relais :4;
+    // 4 bits free
 } cached_solar_values_t;
 
 
@@ -82,7 +94,7 @@ cached_solar_values_t* solar_logger_get_all_cached_values() {
 }
 
 
-static void update_cached_values(huawei_values_t *values, time_t ts) {
+static void update_cached_values(huawei_values_t *values, nrgkick_values_t *nrgkick_values, time_t ts) {
     cached_values[cache_index].ts = (uint32_t)ts;
     cached_values[cache_index].p_pv = values->inverter.pv_dc_w > MAX_UINTN(18) ? MAX_UINTN(18) : values->inverter.pv_dc_w;
     cached_values[cache_index].energy_prod_day = values->inverter.daily_pv_energy_wh;
@@ -107,12 +119,22 @@ static void update_cached_values(huawei_values_t *values, time_t ts) {
     cached_values[cache_index].bat_soc_f10 = (uint16_t)(values->battery.battery_soc <= 0 ? 0 : (values->battery.battery_soc <= 100 ? (values->battery.battery_soc * 10) : 1000));
     cached_values[cache_index].p_bat = values->battery.battery_power_w >= 0 ? (values->battery.battery_power_w  > MAX_INTN(19) ? MAX_INTN(19) : values->battery.battery_power_w) : (values->battery.battery_power_w < MIN_INTN(19) ? MIN_INTN(19) : values->battery.battery_power_w);
  
-    cached_values[cache_index].num_phases = 0;
-    cached_values[cache_index].cp_status = 0;
-    cached_values[cache_index].nrg_i_l1 = 0;
-    cached_values[cache_index].nrg_i_l2 = 0;
-    cached_values[cache_index].nrg_i_l3 = 0;
-    cached_values[cache_index].p_nrgkick = 0;
+    cached_values[cache_index].switched_relais = nrgkick_values->switched_relais;
+    cached_values[cache_index].cp_status = nrgkick_values->cp_status;
+    cached_values[cache_index].charged_energy = nrgkick_values->charged_energy;
+    cached_values[cache_index].warning_code = nrgkick_values->warning_code;
+    cached_values[cache_index].error_code = nrgkick_values->error_code;
+
+    cached_values[cache_index].connector_temp_l1 = nrgkick_values->connector_temp[0] * 100;
+    cached_values[cache_index].connector_temp_l2 = nrgkick_values->connector_temp[1] * 100;
+    cached_values[cache_index].connector_temp_l3 = nrgkick_values->connector_temp[2] * 100;
+    cached_values[cache_index].nrg_i_l1 = nrgkick_values->current[0] * 1000;
+    cached_values[cache_index].nrg_i_l2 = nrgkick_values->current[1] * 1000;
+    cached_values[cache_index].nrg_i_l3 = nrgkick_values->current[2] * 1000;
+    cached_values[cache_index].p_nrgkick = nrgkick_values->charging_power * 1000;
+    cached_values[cache_index].housing_temp = nrgkick_values->housing_temp * 100;
+    cached_values[cache_index].max_current_to_ev = nrgkick_values->user_set_current * 10;
+    cached_values[cache_index].user_set_current = nrgkick_values->user_set_current * 10;
 
 	cached_values[cache_index].uploaded = false;
 
@@ -152,14 +174,14 @@ static void update_cached_values(huawei_values_t *values, time_t ts) {
 }
 
 
-void solar_logger_post_data(huawei_values_t *post_data, bool force) {
+void solar_logger_post_data(huawei_values_t *huawei_data, nrgkick_values_t *nrgkick_data, bool force) {
 	static uint8_t cached_values_local = 0;
 	time_t ts;
 	char *api_data;
 	char *api_ext;
 
 	if ((ts = time(NULL)) != -1) {
-		update_cached_values(post_data, ts);
+		update_cached_values(huawei_data, nrgkick_data, ts);
 		if (send_live_mode) {
 			force = true;
 		}
@@ -209,13 +231,22 @@ void solar_logger_post_data(huawei_values_t *post_data, bool force) {
                     "energy_prod_wh=%lu,"
                     "energy_exp_wh=%lu,"
                     "energy_imp_wh=%lu,"
-                    "cp_status=%u,"
-                    "num_phases=%u,"
                     "nrg_i_l1=%.2f,"
                     "nrg_i_l2=%.2f,"
                     "nrg_i_l3=%.2f,"
-                    "p_nrgkick=%hd"
-                    " %u000000000\n",
+                    "charging_power=%.3f,"
+                    "charged_energy=%u,"
+                    "housing_temp=%.2f,"
+                    "cp_status=%hhu,"
+                    "switched_relais=%hhu,"
+                    "warning_code=%hhu,"
+                    "error_code=%hhu,"
+                    "connector_temp_l1=%.2f,"
+                    "connector_temp_l2=%.2f,"
+                    "connector_temp_l3=%.2f,"
+                    "max_current_to_ev=%.1f,"
+                    "user_set_current=%.1f,"
+                    "%u000000000\n",
                     cached_values[temp_upload_index].p_pv,
                     cached_values[temp_upload_index].p_inv_ac,
                     cached_values[temp_upload_index].p_grid,
@@ -239,12 +270,21 @@ void solar_logger_post_data(huawei_values_t *post_data, bool force) {
                     cached_values[temp_upload_index].energy_prod_wh,
                     cached_values[temp_upload_index].energy_exp_wh,
                     cached_values[temp_upload_index].energy_imp_wh,
-                    cached_values[temp_upload_index].cp_status,
-                    cached_values[temp_upload_index].num_phases,
                     (float)cached_values[temp_upload_index].nrg_i_l1,
                     (float)cached_values[temp_upload_index].nrg_i_l2,
                     (float)cached_values[temp_upload_index].nrg_i_l3,
-                    cached_values[temp_upload_index].p_nrgkick,
+                    (float)(cached_values[temp_upload_index].p_nrgkick) / 1000,
+                    cached_values[temp_upload_index].charged_energy,
+                    (float)(cached_values[temp_upload_index].housing_temp) / 100,
+                    cached_values[temp_upload_index].cp_status,
+                    cached_values[temp_upload_index].switched_relais,
+                    cached_values[temp_upload_index].warning_code,
+                    cached_values[temp_upload_index].error_code,
+                    (float)(cached_values[temp_upload_index].connector_temp_l1) / 100,
+                    (float)(cached_values[temp_upload_index].connector_temp_l2) / 100,
+                    (float)(cached_values[temp_upload_index].connector_temp_l3) / 100,
+                    (float)(cached_values[temp_upload_index].max_current_to_ev) / 10,
+                    (float)(cached_values[temp_upload_index].user_set_current) / 10,
                     cached_values[temp_upload_index].ts
                 );
 				if (cnt == DEBUG_POST_CHUNK_SIZE - 1 || temp_upload_index == (cache_index == 0 ? (MAX_AMOUNT_OF_CACHED_DATA - 1) : (cache_index - 1))) {
@@ -270,6 +310,7 @@ void solar_logger_post_data(huawei_values_t *post_data, bool force) {
 					                    data_strings[26] != NULL ? data_strings[26] : "\0", data_strings[27] != NULL ? data_strings[27] : "\0",
 					                    data_strings[28] != NULL ? data_strings[28] : "\0", data_strings[29] != NULL ? data_strings[29] : "\0");
 					
+                    printf("post data: %s\n", data); //TODO: remove
 					if (db_handler_send_solar_values(data, size) == DB_HANDLER_OK) {
 						LOGI(TAG, "Successfully posted logging data");
 						for (uint8_t i = 0; i < (cnt + 1); i++) {

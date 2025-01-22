@@ -61,7 +61,7 @@ poll_register_t huawei_registers[] = {
 
 
 poll_register_t nrgkick_registers[] = {
-    {251, 1, 0x03, 0},
+    {194, 69, 0x03, 0},
 };
 
 
@@ -74,13 +74,18 @@ static void modbus_tcp_save_poll_data(polling_client_t *client, uint16_t address
     for (size_t i = 0; i < client->num_registers; i++) {
         if (client->registers[i].address == address) {
             if (client->poll_data[i].data) {
-                free(client->poll_data[i].data);
+                FREE_MEM(client->poll_data[i].data);
             }
             client->poll_data[i].data = malloc(length);
             if (client->poll_data[i].data) {
                 memcpy(client->poll_data[i].data, data, length);
                 client->poll_data[i].length = length;
             }
+            /*printf("type: %u, adress: %u length: %u data:\n", client->type, address, length);
+            for (uint8_t x = 0; x < length; x++) {
+                printf("%02X", client->poll_data[i].data[x]);
+            }
+            printf("\n");*/
             break;
         }
     }
@@ -132,9 +137,9 @@ static void modbus_tcp_get_poll_data(polling_client_t *client, uint16_t address,
                 memcpy_reverse(data, client->poll_data[i].data + offset, length * 2);
             }
             else {
-                for (uint16_t x = 0; x < length * 2; x++) {
-                    data[x * 2 + i] = *(client->poll_data[i].data + (offset + x * 2 + 1));
-                    data[x * 2] = *(client->poll_data[i].data + (offset + x * 2));
+                for (uint16_t x = 0; x < length; x++) {
+                    data[x * 2] = *(client->poll_data[i].data + offset + x * 2 + 1);
+                    data[x * 2 + 1] = *(client->poll_data[i].data + offset + x * 2);
                 }
             }
             break;
@@ -237,15 +242,22 @@ void *polling_thread(void *arg) {
                     modbus_tcp_save_poll_data(client, reg->address, buf, reg->length * 2);
                 }
             }
-            free(buf);
+            FREE_MEM(buf);
             usleep(DELAY_BETWEEN_REGISTERS_US);
         }
         modbus_tcp_client_disconnect(sock);
 
+        if (client->type == HUAWEI) { // new huawei values are the trigger for db logging
+            huawei_values_t huawei_data;
+            nrgkick_values_t nrgkick_data;
+            huawei_get_values(&huawei_data);
+            nrgkick_get_values(&nrgkick_data);
+            solar_logger_post_data(&huawei_data, &nrgkick_data, true);
+        }
         uint64_t diff_time = get_time_in_milliseconds() - start_time;
         if (diff_time < ((DELAY_BETWEEN_POLLS_S - client->connection_delay_s) * 1000)) {
             usleep((((DELAY_BETWEEN_POLLS_S - client->connection_delay_s) * 1000) - diff_time) * 1000);
-    }
+        }
     }
     pthread_exit(NULL);
 }
@@ -368,7 +380,7 @@ bool modbus_tcp_poll_start_client(poll_type_t type, const char *host, uint16_t p
         return modbus_tcp_poll_start(HUAWEI, host, port, 1, huawei_registers, sizeof(huawei_registers) / sizeof(poll_register_t));
     }
     else if (type == NRGKICK) {
-        return modbus_tcp_poll_start(HUAWEI, host, port, 0, nrgkick_registers, sizeof(nrgkick_registers) / sizeof(poll_register_t));
+        return modbus_tcp_poll_start(NRGKICK, host, port, 0, nrgkick_registers, sizeof(nrgkick_registers) / sizeof(poll_register_t));
 
     }
     else {

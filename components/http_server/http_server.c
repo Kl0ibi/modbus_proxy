@@ -9,6 +9,7 @@
 #include "system.h"
 #include "modbus_tcp_poll.h"
 #include "huawei_modbus_converter.h"
+#include "nrgkick_modbus_converter.h"
 #include "logging.h"
 
 
@@ -51,8 +52,6 @@ uint16_t server_port = 80;
 
 
 // NOTE: if function returns WEBSERVER_OK, buffer must be freed
-
-
 static uint8_t build_payload(request_uri_type type, char **buffer, size_t *buffer_size) {
     char *body = NULL;
     size_t body_size = 0;
@@ -61,17 +60,24 @@ static uint8_t build_payload(request_uri_type type, char **buffer, size_t *buffe
 
     if (type == TYPE_URI_VALUES) {
         huawei_values_t values;
+        nrgkick_values_t nrgkick_values;
         huawei_get_values(&values);
+        nrgkick_get_values(&nrgkick_values);
         body_size = asprintf(&body, 
             "{\"inverter\":{\"pv_dc_w\":%u,\"inv_ac_w\":%d,\"total_pv_energy_wh\":%u,\"daily_pv_energy_wh\":%u},"
-            "\"energy_meter\":{\"p_grid_w\":%d,\"p_load_w\":%d,\"freq_hz\":%.3f,"
-            "\"L1\":{\"current\":%.2f,\"voltage\":%.1f,\"power_real\":%.0f,\"power_apparent\":%.0f},"
-            "\"L2\":{\"current\":%.2f,\"voltage\":%.1f,\"power_real\":%.0f,\"power_apparent\":%.0f},"
-            "\"L3\":{\"current\":%.2f,\"voltage\":%.1f,\"power_real\":%.0f,\"power_apparent\":%.0f},"
+            "\"energy_meter\":{\"p_grid_w\":%d,\"p_load_w\":%d,\"freq_hz\":%.03f,"
+            "\"L1\":{\"current\":%.02f,\"voltage\":%.01f,\"power_real\":%.0f,\"power_apparent\":%.0f},"
+            "\"L2\":{\"current\":%.02f,\"voltage\":%.01f,\"power_real\":%.0f,\"power_apparent\":%.0f},"
+            "\"L3\":{\"current\":%.02f,\"voltage\":%.01f,\"power_real\":%.0f,\"power_apparent\":%.0f},"
             "\"energy_apparent_cons_vah\":%lu,\"energy_real_cons_wh\":%lu,"
             "\"energy_apparent_prod_vah\":%lu,\"energy_real_prod_wh\":%lu},"
-            "\"battery\":{\"battery_power_w\":%d,\"battery_soc\":%.2f,"
-            "\"battery_working_mode\":%u}}", 
+            "\"battery\":{\"battery_power_w\":%d,\"battery_soc\":%.02f,"
+            "\"battery_working_mode\":%u}," 
+            "\"nrgkick\":{\"user_set_current\":%.01f,\"max_current_to_ev\":%.01f,\"power\":%.03f,\"charged_energy\":%u,\"housing_temp\":%.2f,"
+            "\"cp_status\":%hhu,\"switched_relais\":%hhu,\"warning_code\":%hhu,\"error_code\":%hhu,"
+            "\"L1\":{\"current\":%.03f,\"connector_temp\":%.02f},"
+            "\"L2\":{\"current\":%.03f,\"connector_temp\":%.02f},"
+            "\"L3\":{\"current\":%.03f,\"connector_temp\":%.02f}}}",
             values.inverter.pv_dc_w, 
             values.inverter.inv_ac_w, 
             values.inverter.total_pv_energy_wh, values.inverter.daily_pv_energy_wh,
@@ -88,7 +94,12 @@ static uint8_t build_payload(request_uri_type type, char **buffer, size_t *buffe
             values.energy_meter.energy_real_prod_wh,
             values.battery.battery_power_w,
             values.battery.battery_soc,
-            values.battery.battery_working_mode
+            values.battery.battery_working_mode,
+            nrgkick_values.user_set_current, nrgkick_values.max_current_to_ev, nrgkick_values.charging_power, nrgkick_values.charged_energy, nrgkick_values.housing_temp,
+            nrgkick_values.cp_status, nrgkick_values.switched_relais, nrgkick_values.warning_code, nrgkick_values.error_code,
+            nrgkick_values.current[0], nrgkick_values.connector_temp[0],
+            nrgkick_values.current[1], nrgkick_values.connector_temp[1],
+            nrgkick_values.current[2], nrgkick_values.connector_temp[2]
         );
         status_code = status_code_200;
         content_type = content_type_json;

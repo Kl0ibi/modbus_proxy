@@ -3,6 +3,8 @@
 #include <string.h>
 #include <unistd.h>
 #include <arpa/inet.h>
+#include <fcntl.h>
+#include <errno.h>
 #include "system.h"
 #include "logging.h"
 #include "db_handler.h"
@@ -25,12 +27,69 @@ uint8_t db_handler_send_solar_values(char* formatted_values, size_t formatted_va
     ssize_t request_len;
     char *response = NULL;
     ssize_t response_len;
+    struct timeval timeout;
+    timeout.tv_sec = 3;
+    timeout.tv_usec = 0;
     #define RESPONSE_BUF_SIZE 256
 
     sock = socket(AF_INET, SOCK_STREAM, 0);
     if (sock == -1) {
         LOGE(TAG, "Socket creation failed");
         return DB_HANDLER_GENERAL_ERROR;
+    }
+    int flags = fcntl(sock, F_GETFL, 0);
+    if (flags == -1 || fcntl(sock, F_SETFL, flags | O_NONBLOCK) == -1) {
+        LOGE(TAG, "Failed to set non-blocking mode");
+        close(sock);
+        return DB_HANDLER_GENERAL_ERROR;
+    }
+
+    server.sin_addr.s_addr = inet_addr(INFLUXDB_HOST);
+    server.sin_family = AF_INET;
+    server.sin_port = htons(INFLUXDB_PORT);
+
+    int connect_result = connect(sock, (struct sockaddr *)&server, sizeof(server));
+    if (connect_result < 0 && errno != EINPROGRESS) {
+        LOGE(TAG, "Immediate connection failure");
+        close(sock);
+        return DB_HANDLER_GENERAL_ERROR;
+    }
+    fd_set writefds;
+    FD_ZERO(&writefds);
+    FD_SET(sock, &writefds);
+
+    int select_result = select(sock + 1, NULL, &writefds, NULL, &timeout);
+    if (select_result <= 0) {
+        if (select_result == 0) {
+            LOGE(TAG, "Connection timed out");
+        } else {
+            LOGE(TAG, "Error during connection: %s", strerror(errno));
+        }
+        close(sock);
+        return DB_HANDLER_GENERAL_ERROR;
+    }
+    int sock_error;
+    socklen_t sock_error_len = sizeof(sock_error);
+    if (getsockopt(sock, SOL_SOCKET, SO_ERROR, &sock_error, &sock_error_len) < 0 || sock_error != 0) {
+        LOGE(TAG, "Connection failed: %s", strerror(sock_error));
+        close(sock);
+        return DB_HANDLER_GENERAL_ERROR;
+    }
+    if (fcntl(sock, F_SETFL, flags) == -1) {
+        LOGE(TAG, "Failed to restore blocking mode");
+        close(sock);
+        return DB_HANDLER_GENERAL_ERROR;
+    }
+    LOGD(TAG, "Connected to InfluxDB server.");
+    if (setsockopt(sock, SOL_SOCKET, SO_SNDTIMEO, (char *)&timeout, sizeof(timeout)) < 0) {
+        LOGE(TAG, "Failed to set send timeout");
+        rc = DB_HANDLER_GENERAL_ERROR;
+        goto exit;
+    }
+    if (setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, (char *)&timeout, sizeof(timeout)) < 0) {
+        LOGE(TAG, "Failed to set receive timeout");
+        rc = DB_HANDLER_GENERAL_ERROR;
+        goto exit;
     }
     server.sin_addr.s_addr = inet_addr(INFLUXDB_HOST);
     server.sin_family = AF_INET;

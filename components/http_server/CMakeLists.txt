@@ -11,4 +11,5 @@ target_link_libraries(http_server PUBLIC
     logging
     modbus_tcp_poll
     huawei_modbus_converter
+    nrgkick_modbus_converter
 )
