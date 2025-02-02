@@ -56,28 +56,65 @@ static char *huawei_em_type_to_string(uint16_t type) {
 
 
 void huawei_get_values(huawei_values_t *values) {
-    int32_t temp_pv_dc_w;
 	uint16_t temp_bat_soc;
 	uint16_t temp_bat_working_mode;
+    int16_t temp_pv1_current;
+    int16_t temp_pv2_current;
+    int16_t temp_pv1_voltage;
+    int16_t temp_pv2_voltage;
     huawei_em_request_t em;
 
+    modbus_tcp_poll_get_client_data(HUAWEI, 32016, 1, true, (uint8_t *)&temp_pv1_voltage);
+    if (isnan((double)temp_pv1_voltage)) {
+        values->inverter.pv1_voltage = 0;
+    }
+    else {
+        values->inverter.pv1_voltage = (float)(temp_pv1_voltage) / 10;
+    }
+    modbus_tcp_poll_get_client_data(HUAWEI, 32017, 1, true, (uint8_t *)&temp_pv1_current);
+    if (isnan((double)temp_pv1_current)) {
+        values->inverter.pv1_current = 0;
+    }
+    else {
+        values->inverter.pv1_current = (float)(temp_pv1_current) / 100;
+    }
+    values->inverter.pv1_power = values->inverter.pv1_voltage * values->inverter.pv1_current;
+    modbus_tcp_poll_get_client_data(HUAWEI, 32018, 1, true, (uint8_t *)&temp_pv2_voltage);
+    if (isnan((double)temp_pv2_voltage)) {
+        values->inverter.pv2_voltage = 0;
+    }
+    else {
+        values->inverter.pv2_voltage = (float)(temp_pv2_voltage) / 10;
+    }
+    modbus_tcp_poll_get_client_data(HUAWEI, 32019, 1, true, (uint8_t *)&temp_pv2_current);
+    if (isnan((double)temp_pv2_current)) {
+        values->inverter.pv2_current = 0;
+    }
+    else {
+        values->inverter.pv2_current = (float)(temp_pv2_current) / 100;
+    }
+    values->inverter.pv2_power = values->inverter.pv2_voltage * values->inverter.pv2_current;
+    modbus_tcp_poll_get_client_data(HUAWEI, 32064, 2, true, (uint8_t *)&values->inverter.pv_dc_w);
+    if (isnan((double)values->inverter.pv_dc_w)) {
+        values->inverter.pv_dc_w = 0;
+    }
     modbus_tcp_poll_get_client_data(HUAWEI, 32080, 2, true, (uint8_t *)&values->inverter.inv_ac_w);
     if (isnan((double)values->inverter.inv_ac_w)) {
         values->inverter.inv_ac_w = 0;
     }
-    modbus_tcp_poll_get_client_data(HUAWEI, 32106, 2, true, (uint8_t *)&values->inverter.total_pv_energy_wh);
-    if (isnan((double)values->inverter.total_pv_energy_wh)) {
-        values->inverter.total_pv_energy_wh = 0;
+    modbus_tcp_poll_get_client_data(HUAWEI, 32106, 2, true, (uint8_t *)&values->inverter.total_inv_energy_wh);
+    if (isnan((double)values->inverter.total_inv_energy_wh)) {
+        values->inverter.total_inv_energy_wh = 0;
     }
     else {
-        values->inverter.total_pv_energy_wh *= 100;
+        values->inverter.total_inv_energy_wh *= 100;
     }
-    modbus_tcp_poll_get_client_data(HUAWEI, 32114, 2, true, (uint8_t *)&values->inverter.daily_pv_energy_wh);
-    if (isnan((double)values->inverter.daily_pv_energy_wh)) {
-        values->inverter.daily_pv_energy_wh = 0;
+    modbus_tcp_poll_get_client_data(HUAWEI, 32114, 2, true, (uint8_t *)&values->inverter.daily_inv_energy_wh);
+    if (isnan((double)values->inverter.daily_inv_energy_wh)) {
+        values->inverter.daily_inv_energy_wh = 0;
     }
     else {
-        values->inverter.daily_pv_energy_wh *= 10;
+        values->inverter.daily_inv_energy_wh *= 10;
     }
     modbus_tcp_poll_get_client_data(HUAWEI, 37765, 2, true, (uint8_t *)&values->battery.battery_power_w);
     if (isnan((double)values->battery.battery_power_w)) {
@@ -100,8 +137,36 @@ void huawei_get_values(huawei_values_t *values) {
     else {
         values->battery.battery_working_mode = temp_bat_working_mode;
     }
-    temp_pv_dc_w = values->inverter.inv_ac_w - values->battery.battery_power_w;
-    values->inverter.pv_dc_w = temp_pv_dc_w < 0 ? 0 : temp_pv_dc_w;
+    modbus_tcp_poll_get_client_data(HUAWEI, 37780, 2, true, (uint8_t *)&values->battery.total_battery_charge_wh);
+    if (isnan((double)values->battery.total_battery_charge_wh)) {
+        values->battery.total_battery_charge_wh = 0;
+    }
+    else {
+        values->battery.total_battery_charge_wh *= 10;
+    }
+    modbus_tcp_poll_get_client_data(HUAWEI, 37782, 2, true, (uint8_t *)&values->battery.total_battery_discharge_wh);
+    if (isnan((double)values->battery.total_battery_discharge_wh)) {
+        values->battery.total_battery_discharge_wh = 0;
+    }
+    else {
+        values->battery.total_battery_discharge_wh *= 10;
+    }
+    modbus_tcp_poll_get_client_data(HUAWEI, 37784, 2, true, (uint8_t *)&values->battery.daily_battery_charge_wh);
+    if (isnan((double)values->battery.daily_battery_charge_wh)) {
+        values->battery.daily_battery_charge_wh = 0;
+    }
+    else {
+        values->battery.daily_battery_charge_wh *= 10;
+    }
+    modbus_tcp_poll_get_client_data(HUAWEI, 37786, 2, true, (uint8_t *)&values->battery.daily_battery_discharge_wh);
+    if (isnan((double)values->battery.daily_battery_discharge_wh)) {
+        values->battery.daily_battery_discharge_wh = 0;
+    }
+    else {
+        values->battery.daily_battery_discharge_wh *= 10;
+    }
+    values->inverter.daily_pv_energy_wh = values->inverter.daily_inv_energy_wh - values->battery.daily_battery_discharge_wh + values->battery.daily_battery_charge_wh;
+    values->inverter.total_pv_energy_wh = values->inverter.total_inv_energy_wh - values->battery.total_battery_discharge_wh + values->battery.total_battery_charge_wh;
     modbus_tcp_poll_get_client_data(HUAWEI, 37101, 37, true, (uint8_t *)&em);
     if (!em.power_sf) {
         em.power_sf = 1;

@@ -10,6 +10,7 @@
 #include "modbus_tcp_poll.h"
 #include "huawei_modbus_converter.h"
 #include "nrgkick_modbus_converter.h"
+#include "can_ez3_modbus_converter.h"
 #include "logging.h"
 
 
@@ -61,10 +62,13 @@ static uint8_t build_payload(request_uri_type type, char **buffer, size_t *buffe
     if (type == TYPE_URI_VALUES) {
         huawei_values_t values;
         nrgkick_values_t nrgkick_values;
+        can_ez3_values_t can_ez3_values;
         huawei_get_values(&values);
         nrgkick_get_values(&nrgkick_values);
+        can_ez3_get_values(&can_ez3_values);
         body_size = asprintf(&body, 
-            "{\"inverter\":{\"pv_dc_w\":%u,\"inv_ac_w\":%d,\"total_pv_energy_wh\":%u,\"daily_pv_energy_wh\":%u},"
+            "{\"inverter\":{\"pv_dc_w\":%u,\"pv1_voltage\":%.1f,\"pv1_current\":%.2f,\"pv1_power\":%d,\"pv2_voltage\":%.1f,\"pv2_current\":%.2f,\"pv2_power\":%d,"
+            "\"inv_ac_w\":%d,\"total_pv_energy_wh\":%u,\"total_inv_energy_wh\":%u,\"daily_pv_energy_wh\":%u,\"daily_inv_energy_wh\":%u},"
             "\"energy_meter\":{\"p_grid_w\":%d,\"p_load_w\":%d,\"freq_hz\":%.03f,"
             "\"L1\":{\"current\":%.02f,\"voltage\":%.01f,\"power_real\":%.0f,\"power_apparent\":%.0f},"
             "\"L2\":{\"current\":%.02f,\"voltage\":%.01f,\"power_real\":%.0f,\"power_apparent\":%.0f},"
@@ -72,15 +76,17 @@ static uint8_t build_payload(request_uri_type type, char **buffer, size_t *buffe
             "\"energy_apparent_cons_vah\":%lu,\"energy_real_cons_wh\":%lu,"
             "\"energy_apparent_prod_vah\":%lu,\"energy_real_prod_wh\":%lu},"
             "\"battery\":{\"battery_power_w\":%d,\"battery_soc\":%.02f,"
-            "\"battery_working_mode\":%u}," 
+            "\"battery_working_mode\":%u,\"total_charged_energy_wh\":%u,\"total_discharged_energy_wh\":%u,\"daily_charged_energy_wh\":%u,\"daily_discharged_energy_wh\":%u},"
             "\"nrgkick\":{\"user_set_current\":%.01f,\"max_current_to_ev\":%.01f,\"power\":%.03f,\"charged_energy\":%u,\"housing_temp\":%.2f,"
             "\"cp_status\":%hhu,\"switched_relais\":%hhu,\"warning_code\":%hhu,\"error_code\":%hhu,"
             "\"L1\":{\"current\":%.03f,\"connector_temp\":%.02f},"
             "\"L2\":{\"current\":%.03f,\"connector_temp\":%.02f},"
-            "\"L3\":{\"current\":%.03f,\"connector_temp\":%.02f}}}",
-            values.inverter.pv_dc_w, 
+            "\"L3\":{\"current\":%.03f,\"connector_temp\":%.02f}},"
+            "\"smartload\":{\"boiler_temp\":%.1f,\"sl_power\":%u,\"sl_temp\":%.1f,\"sl_status\":%u}}",
+            values.inverter.pv_dc_w, values.inverter.pv1_voltage, values.inverter.pv1_current, values.inverter.pv1_power, values.inverter.pv2_voltage, values.inverter.pv2_current, values.inverter.pv2_power,
             values.inverter.inv_ac_w, 
-            values.inverter.total_pv_energy_wh, values.inverter.daily_pv_energy_wh,
+            values.inverter.total_pv_energy_wh, values.inverter.total_inv_energy_wh,
+            values.inverter.daily_pv_energy_wh, values.inverter.daily_inv_energy_wh,
             values.energy_meter.p_grid_w, values.energy_meter.p_load_w, values.energy_meter.grid_freq_hz,
             values.energy_meter.current[0], values.energy_meter.voltage[0], 
             values.energy_meter.power_real[0], values.energy_meter.power_apparent[0],
@@ -95,11 +101,13 @@ static uint8_t build_payload(request_uri_type type, char **buffer, size_t *buffe
             values.battery.battery_power_w,
             values.battery.battery_soc,
             values.battery.battery_working_mode,
+            values.battery.total_battery_charge_wh, values.battery.total_battery_discharge_wh, values.battery.daily_battery_charge_wh, values.battery.daily_battery_discharge_wh,
             nrgkick_values.user_set_current, nrgkick_values.max_current_to_ev, nrgkick_values.charging_power, nrgkick_values.charged_energy, nrgkick_values.housing_temp,
             nrgkick_values.cp_status, nrgkick_values.switched_relais, nrgkick_values.warning_code, nrgkick_values.error_code,
             nrgkick_values.current[0], nrgkick_values.connector_temp[0],
             nrgkick_values.current[1], nrgkick_values.connector_temp[1],
-            nrgkick_values.current[2], nrgkick_values.connector_temp[2]
+            nrgkick_values.current[2], nrgkick_values.connector_temp[2],
+            can_ez3_values.boiler_temp, can_ez3_values.sl_power, can_ez3_values.sl_temp, can_ez3_values.sl_status
         );
         status_code = status_code_200;
         content_type = content_type_json;

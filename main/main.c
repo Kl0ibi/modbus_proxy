@@ -51,8 +51,9 @@ int main() {
 
     solar_logger_init();
     modbus_tcp_server_start(5502);
-    modbus_tcp_poll_start_client(HUAWEI, "192.168.8.90", 5502);
+    modbus_tcp_poll_start_client(HUAWEI, "192.168.8.85", 502);
     modbus_tcp_poll_start_client(NRGKICK, "192.168.8.95", 502);
+    modbus_tcp_poll_start_client(CAN_EZ3, "192.168.8.81", 502);
     http_server_start(8000);
 
     event_loop();

@@ -53,12 +53,24 @@ typedef struct __attribute__((packed, aligned(1))) test{
 	int32_t s_l2 :22;
 	int32_t s_l3 :22;
     int32_t freq :22;
-	uint32_t p_pv :18;
+	int32_t p_pv :22;
 	uint32_t bat_soc_f10 :10;
     uint32_t energy_prod_day;
-    // 2bits free
+    uint32_t energy_prod_wh;
+    uint32_t energy_inv_day;
+    uint32_t energy_inv_wh;
+    uint32_t energy_bat_chrg_day;
+    uint32_t energy_bat_disc_day;
+    uint32_t energy_bat_chrg;
+    uint32_t energy_bat_disc;
 
-    uint64_t energy_prod_wh;
+	int32_t p_pv1 :22;
+	int32_t p_pv2 :22;
+	int32_t u_pv1 :22;
+	int32_t u_pv2 :22;
+	int32_t i_pv1 :22;
+	int32_t i_pv2 :22;
+
     uint64_t energy_exp_wh;
     uint64_t energy_imp_wh;
 
@@ -72,7 +84,10 @@ typedef struct __attribute__((packed, aligned(1))) test{
     uint32_t charged_energy;
     int16_t housing_temp;
     uint8_t switched_relais :4;
-    // 4 bits free
+    int16_t boiler_temp;
+    int16_t sl_temp;
+    uint16_t sl_power;
+    uint16_t sl_status;
 } cached_solar_values_t;
 
 
@@ -94,11 +109,23 @@ cached_solar_values_t* solar_logger_get_all_cached_values() {
 }
 
 
-static void update_cached_values(huawei_values_t *values, nrgkick_values_t *nrgkick_values, time_t ts) {
+static void update_cached_values(huawei_values_t *values, nrgkick_values_t *nrgkick_values, can_ez3_values_t *can_ez3_values, time_t ts) {
     cached_values[cache_index].ts = (uint32_t)ts;
-    cached_values[cache_index].p_pv = values->inverter.pv_dc_w > MAX_UINTN(18) ? MAX_UINTN(18) : values->inverter.pv_dc_w;
+    cached_values[cache_index].p_pv = values->inverter.pv_dc_w > MAX_INTN(22) ? MAX_UINTN(22) : values->inverter.pv_dc_w;
+    cached_values[cache_index].p_pv1 = values->inverter.pv1_power > MAX_INTN(22) ? MAX_UINTN(22) : values->inverter.pv1_power;
+    cached_values[cache_index].p_pv2 = values->inverter.pv2_power > MAX_INTN(22) ? MAX_UINTN(22) : values->inverter.pv2_power;
+    cached_values[cache_index].u_pv1 = values->inverter.pv1_voltage >= 0 ? ((int32_t)(values->inverter.pv1_voltage * 10) > MAX_INTN(22) ? MAX_INTN(22) : (int32_t)(values->inverter.pv1_voltage * 10)) : ((int32_t)(values->inverter.pv1_voltage * 10) < MIN_INTN(22) ? MIN_INTN(22) : (int32_t)(values->inverter.pv1_voltage * 10));
+    cached_values[cache_index].u_pv2 = values->inverter.pv2_voltage >= 0 ? ((int32_t)(values->inverter.pv2_voltage * 10) > MAX_INTN(22) ? MAX_INTN(22) : (int32_t)(values->inverter.pv2_voltage * 10)) : ((int32_t)(values->inverter.pv2_voltage * 10) < MIN_INTN(22) ? MIN_INTN(22) : (int32_t)(values->inverter.pv2_voltage * 10));
+    cached_values[cache_index].i_pv1 = values->inverter.pv1_current >= 0 ? ((int32_t)(values->inverter.pv1_current * 100) > MAX_INTN(22) ? MAX_INTN(22) : (int32_t)(values->inverter.pv1_current * 100)) : ((int32_t)(values->inverter.pv1_current * 100) < MIN_INTN(22) ? MIN_INTN(22) : (int32_t)(values->inverter.pv1_current * 100));
+    cached_values[cache_index].i_pv2 = values->inverter.pv2_current >= 0 ? ((int32_t)(values->inverter.pv2_current * 100) > MAX_INTN(22) ? MAX_INTN(22) : (int32_t)(values->inverter.pv2_current * 100)) : ((int32_t)(values->inverter.pv2_current * 100) < MIN_INTN(22) ? MIN_INTN(22) : (int32_t)(values->inverter.pv2_current * 100));
     cached_values[cache_index].energy_prod_day = values->inverter.daily_pv_energy_wh;
     cached_values[cache_index].energy_prod_wh = values->inverter.total_pv_energy_wh;
+    cached_values[cache_index].energy_inv_day = values->inverter.daily_inv_energy_wh;
+    cached_values[cache_index].energy_inv_wh = values->inverter.total_inv_energy_wh;
+    cached_values[cache_index].energy_bat_chrg_day = values->battery.daily_battery_charge_wh;
+    cached_values[cache_index].energy_bat_disc_day = values->battery.daily_battery_discharge_wh;
+    cached_values[cache_index].energy_bat_chrg = values->battery.total_battery_charge_wh;
+    cached_values[cache_index].energy_bat_disc = values->battery.total_battery_discharge_wh;
     cached_values[cache_index].p_grid = values->energy_meter.p_grid_w >= 0 ? (values->energy_meter.p_grid_w > MAX_INTN(19) ? MAX_INTN(19) : values->energy_meter.p_grid_w) : (values->energy_meter.p_grid_w < MIN_INTN(19) ? MIN_INTN(19) : values->energy_meter.p_grid_w);
     cached_values[cache_index].p_load = values->energy_meter.p_load_w >= 0 ? (values->energy_meter.p_load_w > MAX_INTN(19) ? MAX_INTN(19) : values->energy_meter.p_load_w) : (values->energy_meter.p_load_w < MIN_INTN(19) ? MIN_INTN(19) : values->energy_meter.p_load_w);
     cached_values[cache_index].energy_exp_wh = values->energy_meter.energy_real_prod_wh;
@@ -135,6 +162,11 @@ static void update_cached_values(huawei_values_t *values, nrgkick_values_t *nrgk
     cached_values[cache_index].housing_temp = nrgkick_values->housing_temp * 100;
     cached_values[cache_index].max_current_to_ev = nrgkick_values->user_set_current * 10;
     cached_values[cache_index].user_set_current = nrgkick_values->user_set_current * 10;
+
+    cached_values[cache_index].boiler_temp = can_ez3_values->boiler_temp * 10;
+    cached_values[cache_index].sl_temp = can_ez3_values->sl_temp * 10;
+    cached_values[cache_index].sl_power = can_ez3_values->sl_power;
+    cached_values[cache_index].sl_status = can_ez3_values->sl_status;
 
 	cached_values[cache_index].uploaded = false;
 
@@ -174,14 +206,14 @@ static void update_cached_values(huawei_values_t *values, nrgkick_values_t *nrgk
 }
 
 
-void solar_logger_post_data(huawei_values_t *huawei_data, nrgkick_values_t *nrgkick_data, bool force) {
+void solar_logger_post_data(huawei_values_t *huawei_data, nrgkick_values_t *nrgkick_data, can_ez3_values_t *can_ez3_data, bool force) {
 	static uint8_t cached_values_local = 0;
 	time_t ts;
 	char *api_data;
 	char *api_ext;
 
 	if ((ts = time(NULL)) != -1) {
-		update_cached_values(huawei_data, nrgkick_data, ts);
+		update_cached_values(huawei_data, nrgkick_data, can_ez3_data, ts);
 		if (send_live_mode) {
 			force = true;
 		}
@@ -209,6 +241,12 @@ void solar_logger_post_data(huawei_values_t *huawei_data, nrgkick_values_t *nrgk
                 asprintf(&data_strings[cnt],
                     "power_data,source=grid "
                     "p_pv=%d,"
+                    "p_pv1=%d,"
+                    "p_pv2=%d,"
+                    "u_pv1=%.1f,"
+                    "u_pv2=%.1f,"
+                    "i_pv1=%.2f,"
+                    "i_pv2=%.2f,"
                     "p_inv_ac=%d,"
                     "p_grid=%d,"
                     "p_load=%d,"
@@ -228,7 +266,13 @@ void solar_logger_post_data(huawei_values_t *huawei_data, nrgkick_values_t *nrgk
                     "s_l2=%.2f,"
                     "s_l3=%.2f,"
                     "energy_prod_day=%u,"
-                    "energy_prod_wh=%lu,"
+                    "energy_prod_wh=%u,"
+                    "energy_inv_day=%u,"
+                    "energy_inv_wh=%u,"
+                    "energy_bat_chrg_day=%u,"
+                    "energy_bat_disc_day=%u,"
+                    "energy_bat_chrg=%u,"
+                    "energy_bat_disc=%u,"
                     "energy_exp_wh=%lu,"
                     "energy_imp_wh=%lu,"
                     "nrg_i_l1=%.2f,"
@@ -245,9 +289,19 @@ void solar_logger_post_data(huawei_values_t *huawei_data, nrgkick_values_t *nrgk
                     "connector_temp_l2=%.2f,"
                     "connector_temp_l3=%.2f,"
                     "max_current_to_ev=%.1f,"
-                    "user_set_current=%.1f"
+                    "user_set_current=%.1f,"
+                    "boiler_temp=%.1f,"
+                    "sl_power=%u,"
+                    "sl_temp=%.1f,"
+                    "sl_status=%u"
                     " %u000000000\n",
                     cached_values[temp_upload_index].p_pv,
+                    cached_values[temp_upload_index].p_pv1,
+                    cached_values[temp_upload_index].p_pv2,
+                    (float)(cached_values[temp_upload_index].u_pv1) / 10,
+                    (float)(cached_values[temp_upload_index].u_pv2) / 10,
+                    (float)(cached_values[temp_upload_index].i_pv1) / 100,
+                    (float)(cached_values[temp_upload_index].i_pv2) / 100,
                     cached_values[temp_upload_index].p_inv_ac,
                     cached_values[temp_upload_index].p_grid,
                     cached_values[temp_upload_index].p_load,
@@ -268,6 +322,12 @@ void solar_logger_post_data(huawei_values_t *huawei_data, nrgkick_values_t *nrgk
                     (float)(cached_values[temp_upload_index].s_l3) / 10,
                     cached_values[temp_upload_index].energy_prod_day,
                     cached_values[temp_upload_index].energy_prod_wh,
+                    cached_values[temp_upload_index].energy_inv_day,
+                    cached_values[temp_upload_index].energy_inv_wh,
+                    cached_values[temp_upload_index].energy_bat_chrg_day,
+                    cached_values[temp_upload_index].energy_bat_disc_day,
+                    cached_values[temp_upload_index].energy_bat_chrg,
+                    cached_values[temp_upload_index].energy_bat_disc,
                     cached_values[temp_upload_index].energy_exp_wh,
                     cached_values[temp_upload_index].energy_imp_wh,
                     (float)cached_values[temp_upload_index].nrg_i_l1,
@@ -285,6 +345,10 @@ void solar_logger_post_data(huawei_values_t *huawei_data, nrgkick_values_t *nrgk
                     (float)(cached_values[temp_upload_index].connector_temp_l3) / 100,
                     (float)(cached_values[temp_upload_index].max_current_to_ev) / 10,
                     (float)(cached_values[temp_upload_index].user_set_current) / 10,
+                    (float)(cached_values[temp_upload_index].boiler_temp) / 10,
+                    cached_values[temp_upload_index].sl_power,
+                    (float)(cached_values[temp_upload_index].sl_temp) / 10,
+                    cached_values[temp_upload_index].sl_status,
                     cached_values[temp_upload_index].ts
                 );
 				if (cnt == DEBUG_POST_CHUNK_SIZE - 1 || temp_upload_index == (cache_index == 0 ? (MAX_AMOUNT_OF_CACHED_DATA - 1) : (cache_index - 1))) {
