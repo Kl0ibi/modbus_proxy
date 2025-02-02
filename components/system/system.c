@@ -1,4 +1,5 @@
 #include <time.h>
+#include <sys/time.h>
 #include "system.h"
 
 
@@ -30,5 +31,7 @@ void trim_leading_whitespace(char *str) {
 
 
 uint64_t get_time_in_milliseconds() {
-    return (uint64_t)clock() * 1000 / CLOCKS_PER_SEC;
+    struct timeval tv;
+    gettimeofday(&tv, NULL);
+    return (tv.tv_sec * 1000) + (tv.tv_usec / 1000);
 }

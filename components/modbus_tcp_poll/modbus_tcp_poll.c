@@ -45,6 +45,7 @@ typedef struct {
     pthread_mutex_t control_mutex;
     pthread_mutex_t data_mutex;
     poll_type_t type;
+    uint64_t start_time;
 } polling_client_t;
 
 
@@ -215,9 +216,9 @@ static void modbus_tcp_get_poll_str(polling_client_t *client, uint16_t address, 
 void *polling_thread(void *arg) {
     polling_client_t *client = (polling_client_t *)arg;
     int32_t sock = -1;
-    uint64_t start_time = get_time_in_milliseconds();
 
     while (client->running) {
+        client->start_time = get_time_in_milliseconds();
         sock = modbus_tcp_client_connect(client->host, &client->port);
         if (sock < 0) {
             LOGE(TAG, "Failed to connect to Modbus client, retrying...");
@@ -263,7 +264,7 @@ void *polling_thread(void *arg) {
             can_ez3_get_values(&can_ez3_data);
             solar_logger_post_data(&huawei_data, &nrgkick_data, &can_ez3_data, true);
         }
-        uint64_t diff_time = get_time_in_milliseconds() - start_time;
+        uint64_t diff_time = get_time_in_milliseconds() - client->start_time;
         if (diff_time < ((DELAY_BETWEEN_POLLS_S - client->connection_delay_s) * 1000)) {
             usleep((((DELAY_BETWEEN_POLLS_S - client->connection_delay_s) * 1000) - diff_time) * 1000);
         }
