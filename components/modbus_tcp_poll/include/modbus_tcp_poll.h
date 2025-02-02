@@ -5,6 +5,7 @@
 typedef enum {
     HUAWEI = 0,
     NRGKICK = 1,
+    CAN_EZ3 = 2,
 } poll_type_t;
 
 

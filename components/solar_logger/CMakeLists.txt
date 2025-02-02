@@ -12,4 +12,5 @@ target_link_libraries(solar_logger PUBLIC
     db_handler
     huawei_modbus_converter
     nrgkick_modbus_converter
+    can_ez3_modbus_converter
 )

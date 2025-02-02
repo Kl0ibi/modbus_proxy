@@ -6,10 +6,18 @@
 
 typedef struct __attribute__((packed, aligned(2))){
     struct __attribute__((packed, aligned(2))){
-        uint32_t pv_dc_w;
+        int32_t pv_dc_w;
+        float pv1_voltage;
+        float pv1_current;
+        int32_t pv1_power;
+        float pv2_voltage;
+        float pv2_current;
+        int32_t pv2_power;
         int32_t inv_ac_w;
         uint32_t daily_pv_energy_wh;
+        uint32_t daily_inv_energy_wh;
         uint32_t total_pv_energy_wh;
+        uint32_t total_inv_energy_wh;
     } inverter;
     struct __attribute__((packed, aligned(2))){
         float current[3];
@@ -28,6 +36,10 @@ typedef struct __attribute__((packed, aligned(2))){
         int32_t battery_power_w;
         float battery_soc;
         uint8_t battery_working_mode;
+        uint32_t daily_battery_charge_wh;
+        uint32_t daily_battery_discharge_wh;
+        uint32_t total_battery_charge_wh;
+        uint32_t total_battery_discharge_wh;
     } battery;
 } huawei_values_t;
 

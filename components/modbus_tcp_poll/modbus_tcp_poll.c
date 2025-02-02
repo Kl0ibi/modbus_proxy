@@ -18,7 +18,7 @@
 #define DELAY_BETWEEN_POLLS_S (5)
 #define CONNECTION_RETRY_DELAY_S (5)
 #define MAX_NUM_FAILED_REQ (5)
-#define MAX_CLIENTS 2
+#define MAX_CLIENTS 3
 
 typedef struct {
     uint16_t address;
@@ -51,10 +51,10 @@ typedef struct {
 poll_register_t huawei_registers[] = {
     {30000, 25, 0x03, 0},
     {30073, 4, 0x03, 0},
-    {32080, 36, 0x03, 0},
+    {32016, 100, 0x03, 0},
     {37000, 62, 0x03, 0},
     {37100, 38, 0x03, 0},
-    {37700, 67, 0x03, 0},
+    {37700, 88, 0x03, 0},
     {47000, 1, 0x03, 0},
     {47086, 4, 0x03, 0},
 };
@@ -62,6 +62,12 @@ poll_register_t huawei_registers[] = {
 
 poll_register_t nrgkick_registers[] = {
     {194, 69, 0x03, 0},
+    {1, 1, 0x04, 0},
+};
+
+
+poll_register_t can_ez3_registers[] = {
+    {1, 4, 0x04, 0},
 };
 
 
@@ -239,6 +245,7 @@ void *polling_thread(void *arg) {
                 else {
                     reg->num_failed_requests++;
                     LOGW(TAG, "Failed to poll address %u, retries reached %u", reg->address, MAX_NUM_FAILED_REQ);
+                    memset(buf, 0, reg->length * 2);
                     modbus_tcp_save_poll_data(client, reg->address, buf, reg->length * 2);
                 }
             }
@@ -250,9 +257,11 @@ void *polling_thread(void *arg) {
         if (client->type == HUAWEI) { // new huawei values are the trigger for db logging
             huawei_values_t huawei_data;
             nrgkick_values_t nrgkick_data;
+            can_ez3_values_t can_ez3_data;
             huawei_get_values(&huawei_data);
             nrgkick_get_values(&nrgkick_data);
-            solar_logger_post_data(&huawei_data, &nrgkick_data, true);
+            can_ez3_get_values(&can_ez3_data);
+            solar_logger_post_data(&huawei_data, &nrgkick_data, &can_ez3_data, true);
         }
         uint64_t diff_time = get_time_in_milliseconds() - start_time;
         if (diff_time < ((DELAY_BETWEEN_POLLS_S - client->connection_delay_s) * 1000)) {
@@ -381,7 +390,9 @@ bool modbus_tcp_poll_start_client(poll_type_t type, const char *host, uint16_t p
     }
     else if (type == NRGKICK) {
         return modbus_tcp_poll_start(NRGKICK, host, port, 0, nrgkick_registers, sizeof(nrgkick_registers) / sizeof(poll_register_t));
-
+    }
+    else if (type == CAN_EZ3) {
+        return modbus_tcp_poll_start(CAN_EZ3, host, port, 0, can_ez3_registers, sizeof(can_ez3_registers) / sizeof(poll_register_t));
     }
     else {
         LOGE(TAG, "Invalid poll type");

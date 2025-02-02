@@ -12,4 +12,5 @@ target_link_libraries(http_server PUBLIC
     modbus_tcp_poll
     huawei_modbus_converter
     nrgkick_modbus_converter
+    can_ez3_modbus_converter
 )
