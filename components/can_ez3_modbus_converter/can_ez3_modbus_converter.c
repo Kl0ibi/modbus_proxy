@@ -19,6 +19,9 @@ void can_ez3_get_values(can_ez3_values_t *values) {
     if (isnan((double)values->sl_power)) {
         values->sl_power = 0;
     }
+    else {
+        values->sl_power *= 10;
+    }
     modbus_tcp_poll_get_client_data(CAN_EZ3, 3, 1, true, (uint8_t *)&sl_temp);
     if (isnan((double)sl_temp)) {
         values->sl_temp = 0;
