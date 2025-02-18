@@ -55,7 +55,7 @@ static char *huawei_em_type_to_string(uint16_t type) {
 }
 
 
-void huawei_get_values(huawei_values_t *values) {
+void huawei_get_values(pv_values_t *values) {
 	uint16_t temp_bat_soc;
 	uint16_t temp_bat_working_mode;
     int16_t temp_pv1_current;
@@ -209,7 +209,7 @@ void huawei_get_values(huawei_values_t *values) {
 }
 
 
-void huawei_get_info(huawei_info_t *info) {
+void huawei_get_info(pv_info_t *info) {
 	char *inv_unique_id = NULL;
 	uint16_t inv_unique_id_len;
 	char *inv_model = NULL;

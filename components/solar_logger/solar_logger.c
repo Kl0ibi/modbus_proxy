@@ -109,7 +109,7 @@ cached_solar_values_t* solar_logger_get_all_cached_values() {
 }
 
 
-static void update_cached_values(huawei_values_t *values, nrgkick_values_t *nrgkick_values, can_ez3_values_t *can_ez3_values, time_t ts) {
+static void update_cached_values(pv_values_t *values, nrgkick_values_t *nrgkick_values, can_ez3_values_t *can_ez3_values, time_t ts) {
     cached_values[cache_index].ts = (uint32_t)ts;
     cached_values[cache_index].p_pv = values->inverter.pv_dc_w > MAX_INTN(22) ? MAX_UINTN(22) : values->inverter.pv_dc_w;
     cached_values[cache_index].p_pv1 = values->inverter.pv1_power > MAX_INTN(22) ? MAX_UINTN(22) : values->inverter.pv1_power;
@@ -206,7 +206,7 @@ static void update_cached_values(huawei_values_t *values, nrgkick_values_t *nrgk
 }
 
 
-void solar_logger_post_data(huawei_values_t *huawei_data, nrgkick_values_t *nrgkick_data, can_ez3_values_t *can_ez3_data, bool force) {
+void solar_logger_post_data(pv_values_t *huawei_data, nrgkick_values_t *nrgkick_data, can_ez3_values_t *can_ez3_data, bool force) {
 	static uint8_t cached_values_local = 0;
 	time_t ts;
 	char *api_data;

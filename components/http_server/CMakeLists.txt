@@ -13,4 +13,5 @@ target_link_libraries(http_server PUBLIC
     huawei_modbus_converter
     nrgkick_modbus_converter
     can_ez3_modbus_converter
+    fronius_solar_api
 )

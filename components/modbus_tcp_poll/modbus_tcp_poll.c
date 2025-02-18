@@ -256,10 +256,12 @@ void *polling_thread(void *arg) {
         modbus_tcp_client_disconnect(sock);
 
         if (client->type == HUAWEI) { // new huawei values are the trigger for db logging
-            huawei_values_t huawei_data;
+            pv_values_t huawei_data;
+            //pv_values_t fronius_data;
             nrgkick_values_t nrgkick_data;
             can_ez3_values_t can_ez3_data;
             huawei_get_values(&huawei_data);
+            //huawei_get_values(&fronius_data);
             nrgkick_get_values(&nrgkick_data);
             can_ez3_get_values(&can_ez3_data);
             solar_logger_post_data(&huawei_data, &nrgkick_data, &can_ez3_data, true);

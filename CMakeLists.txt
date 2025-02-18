@@ -20,6 +20,8 @@ add_subdirectory(components/can_ez3_modbus_converter)
 add_subdirectory(components/db_handler)
 add_subdirectory(components/http_server)
 add_subdirectory(components/solar_logger)
+add_subdirectory(components/cJSON)
+add_subdirectory(components/fronius_solar_api)
 add_subdirectory(main)
 
 # Define the executable and link all components
@@ -38,6 +40,8 @@ target_link_libraries(modbus_proxy
     db_handler
     http_server
     solar_logger
+    cJSON
+    fronius_solar_api
 )
 
 # Include directories for the main target
@@ -54,4 +58,6 @@ target_include_directories(modbus_proxy PUBLIC
     ${CMAKE_SOURCE_DIR}/components/db_handler/include
     ${CMAKE_SOURCE_DIR}/components/http_server/include
     ${CMAKE_SOURCE_DIR}/components/solar_logger/include
+    ${CMAKE_SOURCE_DIR}/components/cJSON/include
+    ${CMAKE_SOURCE_DIR}/components/fronius_solar_api/include
 )

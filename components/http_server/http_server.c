@@ -11,6 +11,7 @@
 #include "huawei_modbus_converter.h"
 #include "nrgkick_modbus_converter.h"
 #include "can_ez3_modbus_converter.h"
+#include "fronius_solar_api.h"
 #include "logging.h"
 
 
@@ -60,9 +61,10 @@ static uint8_t build_payload(request_uri_type type, char **buffer, size_t *buffe
     const char *content_type;
 
     if (type == TYPE_URI_VALUES) {
-        huawei_values_t values;
+        pv_values_t values;
         nrgkick_values_t nrgkick_values;
         can_ez3_values_t can_ez3_values;
+        //fronius_get_values(&values);
         huawei_get_values(&values);
         nrgkick_get_values(&nrgkick_values);
         can_ez3_get_values(&can_ez3_values);
@@ -113,9 +115,9 @@ static uint8_t build_payload(request_uri_type type, char **buffer, size_t *buffe
         content_type = content_type_json;
     }
     else if (type == TYPE_URI_INFO) {
-        huawei_info_t info;
+        pv_info_t info;
         huawei_get_info(&info);
-        body_size = asprintf(&body, 
+        body_size = asprintf(&body,
             "{\"inverter\":{\"model\":\"%s\",\"unique_id\":\"%s\",\"max_power_ac_w\":%u},"
             "\"energy_meter\":{\"model\":\"%s\"},"
             "\"battery\":{\"model\":\"%s\",\"unique_id\":\"%s\"}}", 
